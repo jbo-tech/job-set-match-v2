@@ -1,0 +1,35 @@
+{
+  "manifest_version": 3,
+  "name": "Job Set & Match",
+  "version": "0.1.0",
+  "description": "Analyse une offre d'emploi ouverte dans Firefox via le backend local.",
+  "browser_specific_settings": {
+    "gecko": {
+      "id": "jobsetmatch@local",
+      "strict_min_version": "115.0"
+    }
+  },
+  "permissions": [
+    "activeTab",
+    "scripting",
+    "storage"
+  ],
+  "host_permissions": [
+    "http://127.0.0.1/*"
+  ],
+  "icons": {
+    "48": "icons/icon-48.png",
+    "96": "icons/icon-96.png"
+  },
+  "background": {
+    "scripts": ["background/service_worker.js"]
+  },
+  "action": {
+    "default_popup": "popup/popup.html",
+    "default_title": "Job Set & Match",
+    "default_icon": {
+      "48": "icons/icon-48.png",
+      "96": "icons/icon-96.png"
+    }
+  }
+}

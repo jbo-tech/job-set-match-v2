@@ -1,0 +1,53 @@
+<!DOCTYPE html>
+<html lang="fr">
+  <head>
+    <meta charset="UTF-8" />
+    <title>Job Set & Match</title>
+    <link rel="stylesheet" href="popup.css" />
+  </head>
+  <body>
+    <header>
+      <h1>Job Set &amp; Match</h1>
+    </header>
+
+    <main>
+      <button id="analyze-btn" type="button">Analyser cette offre</button>
+
+      <section id="status" class="status idle">
+        <p class="status-message">Prêt à analyser la page courante.</p>
+      </section>
+
+      <section id="result" class="result hidden">
+        <p><strong>Entreprise :</strong> <span id="result-company"></span></p>
+        <p><strong>Poste :</strong> <span id="result-position"></span></p>
+        <p><strong>Décision :</strong> <span id="result-decision"></span></p>
+        <p><strong>Score :</strong> <span id="result-score"></span>/40</p>
+        <p><strong>Coût :</strong> <span id="result-cost"></span></p>
+        <p class="vault-path"><span id="result-vault"></span></p>
+      </section>
+
+      <details id="settings">
+        <summary>Paramètres</summary>
+        <label for="backend-url">URL du backend</label>
+        <input
+          type="url"
+          id="backend-url"
+          placeholder="http://127.0.0.1:8001"
+          autocomplete="off"
+        />
+        <p id="url-warning" class="url-warning" style="display: none;"></p>
+        <label for="auth-token">Token d'authentification (X-Auth-Token)</label>
+        <input
+          type="password"
+          id="auth-token"
+          placeholder="valeur de AUTH_TOKEN"
+          autocomplete="off"
+        />
+        <button id="save-settings-btn" type="button">Enregistrer</button>
+        <p id="settings-status" class="token-status"></p>
+      </details>
+    </main>
+
+    <script src="popup.js"></script>
+  </body>
+</html>

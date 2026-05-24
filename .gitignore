@@ -1,0 +1,43 @@
+# Environment
+.env
+.env.local
+
+# Python
+__pycache__/
+*.py[cod]
+*$py.class
+*.so
+.Python
+.venv/
+venv/
+env/
+*.egg-info/
+.pytest_cache/
+.ruff_cache/
+
+# uv
+.uv/
+
+# Logs
+*.log
+
+# Captures locales
+*.pdf
+!_prompts_archive/*.pdf
+
+# OS
+.DS_Store
+Thumbs.db
+
+# IDE
+.vscode/
+.idea/
+*.swp
+
+# Plugin Firefox build
+plugin/web-ext-artifacts/
+node_modules/
+
+# Tests
+.coverage
+htmlcov/

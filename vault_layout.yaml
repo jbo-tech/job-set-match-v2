@@ -1,0 +1,39 @@
+# Contrat d'intégration vault ↔ app.
+# Modifier ce fichier pour adapter l'app à un nouveau vault sans toucher au code.
+# Spec : APP_INTEGRATION_SPEC.md §6
+
+vault_root: /home/jbo/Obsidian/career
+
+paths:
+  applications: 03_Applications
+  companies: 02_Companies
+  archive: 03_Applications/_Archive_V1
+
+# Docs perso injectés dans les prompts Claude.
+# `path` accepte les wildcards glob (*, ?, [...], [!_]) pour pointer plusieurs
+# fichiers (ex: split d'expériences par poste). Le loader résout en runtime.
+# `cache: true` → injection avec cache_control ephemeral (Claude prompt cache).
+personal_docs:
+  cv:
+    path: 01_Profilage/Jean-Baptiste - Mon CV.md
+    cache: true
+  experiences:
+    path: 01_Profilage/Experiences/[!_]*.md
+    cache: true
+  pitch:
+    path: 01_Profilage/Jean-Baptiste - Mon Pitch.md
+    cache: true
+  profil:
+    path: 01_Profilage/Jean-Baptiste - Profil Professionnel Actualisé 2025.md
+    cache: true
+  personnalite:
+    path: 01_Profilage/Jean-Baptiste - Personnalite.md
+    cache: true
+  questions:
+    path: 01_Profilage/Jean-Baptiste - Questions cles.md
+    cache: false
+
+# Optionnel : override des prompts depuis le vault (clé → chemin relatif).
+# Si absent, les prompts Python (app/prompts/) sont utilisés.
+# prompts:
+#   generation: 05_Resources/Prompt/_Prompt.lettre.md
