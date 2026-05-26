@@ -8,6 +8,7 @@
 
 ## Commands
 ```bash
+cp config.example.yaml config.yaml           # première installation / nouveau clone
 uv run uvicorn app.main:app --reload        # dev server (port 8000)
 uv run pytest                                # tests (140 tests)
 uv run python -m app.main <URL> [fichier] [--refresh] [--temperature 0.5]  # mode CLI
@@ -29,7 +30,7 @@ uv run playwright install chromium           # setup Playwright (une fois)
 - Commentaires et docstrings : français
 - Noms de variables/fonctions : anglais
 - Commits : anglais, conventional commits
-- Config via `.env` (voir `.env.example`)
+- Secrets via `.env` (voir `.env.example`), config métier via `config.yaml` (voir `config.example.yaml`)
 
 ## Structure
 ```
@@ -38,7 +39,7 @@ app/               # backend FastAPI + logique metier
   main.py          # FastAPI app + endpoint /analyze + mode CLI
   models.py        # schemas Pydantic (request/response/analysis)
   pipeline.py      # orchestrateur central
-  vault_layout.py  # parse vault_layout.yaml (Pydantic)
+  vault_layout.py  # parse section vault de config.yaml (Pydantic)
   llm/             # abstraction multi-provider (protocol, anthropic_client,
                    # openai_client, factory)
   middleware/       # auth token
@@ -50,7 +51,7 @@ app/               # backend FastAPI + logique metier
 plugin/            # extension Firefox (manifest.json, extract.js, popup, service_worker)
 tests/             # pytest + pytest-asyncio
 _prompts_archive/  # prompts V1 (reference)
-vault_layout.yaml  # config structure vault Obsidian
+config.yaml        # config métier unique (vault + LLM + serveur)
 ```
 
 ## Pricing

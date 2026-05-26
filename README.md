@@ -65,29 +65,49 @@ uv run python -m app.main https://example.com/offre offre.txt --temperature 0.5
 uv run python -m pytest
 ```
 
-## Configuration (.env)
+## Configuration
+
+Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèles, seuils) vit dans `config.yaml`.
+
+### `.env` — secrets
 
 | Variable | Description | Defaut |
 |----------|-------------|--------|
-| `OBSIDIAN_VAULT_PATH` | Chemin absolu vers le vault Obsidian | *requis* |
 | `ANTHROPIC_API_KEY` | Cle API Anthropic | *requis* |
 | `AUTH_TOKEN` | Token d'authentification pour le plugin | *requis* |
 | `BRAVE_API_KEY` | Cle API Brave Search (analyse entreprise) | *(vide = desactive)* |
-| `SCORE_THRESHOLD` | Seuil minimum de `chanceRating` pour generer la lettre (0 = decision Claude seule) | `0.0` |
-| `DEFAULT_MODEL` | Modele Claude a utiliser | `claude-sonnet-4-20250514` |
-| `MAX_TOKENS` | Tokens max par reponse Claude | `8192` |
-| `ANALYSIS_TEMPERATURE` | Temperature pour l'analyse | `0.2` |
-| `GENERATION_TEMPERATURE` | Temperature pour la lettre | `0.7` |
+| `OPENAI_API_KEY` | Cle API OpenAI (si un modele gpt-* est configure) | *(vide)* |
+| `MISTRAL_API_KEY` | Cle API Mistral | *(vide)* |
+| `DEEPSEEK_API_KEY` | Cle API DeepSeek | *(vide)* |
+| `GROQ_API_KEY` | Cle API Groq | *(vide)* |
+| `GOOGLE_API_KEY` | Cle API Google (Gemini) | *(vide)* |
+
+### `config.yaml` — config métier
+
+| Section | Cle | Description | Defaut |
+|---------|-----|-------------|--------|
+| `vault` | `vault_root` | Chemin absolu vers le vault Obsidian | *requis* |
+| `vault` | `paths` | Chemins relatifs (applications, companies, archive) | voir fichier |
+| `vault` | `personal_docs` | Docs perso injectes dans les prompts | voir fichier |
+| `llm.models` | `default` | Modele par defaut | `claude-sonnet-4-20250514` |
+| `llm.models` | `analysis` | Override modele analyse offre | `">>fallback` |
+| `llm.models` | `company` | Override modele analyse entreprise | `">>fallback` |
+| `llm.models` | `generation` | Override modele generation lettre | `">>fallback` |
+| `llm.models` | `outreach` | Override modele outreach | `">>fallback` |
+| `llm` | `temperatures` | Temperatures par tache (analysis, generation, outreach) | `0.2 / 0.7 / 0.5` |
+| `llm` | `max_tokens` | Tokens max par reponse | `8192` |
+| `server` | `score_threshold` | Seuil `chanceRating` pour generer la lettre | `0.0` |
+| `server` | `host` / `port` | Bind serveur | `127.0.0.1:8000` |
 
 ## Structure du projet
 
 ```
 app/                          # Backend FastAPI + logique metier
-  config.py                   # Pydantic Settings — charge .env, expose les parametres
+  config.py                   # Pydantic Settings — charge .env (secrets) et config.yaml (métier)
   main.py                     # Point d'entree FastAPI (/analyze, /health) + mode CLI
   models.py                   # Schemas Pydantic — contrats partages (request, response, analyse)
   pipeline.py                 # Orchestrateur central — enchaine les etapes d'analyse
-  vault_layout.py             # Parse vault_layout.yaml — structure du vault Obsidian
+  vault_layout.py             # Parse section vault de config.yaml — structure du vault Obsidian
 
   middleware/
     auth.py                   # Middleware auth — verifie X-Auth-Token sur chaque requete
@@ -132,7 +152,7 @@ plugin/                       # Extension Firefox Manifest V3
     popup.css                 # Styles du popup
 
 tests/                        # pytest + pytest-asyncio
-vault_layout.yaml             # Config structure vault Obsidian (chemins, docs perso, flags cache)
+config.yaml                   # Config métier unique (vault + modèles LLM + serveur)
 pyproject.toml                # Dependances et config projet (uv/hatch)
 ```
 
@@ -171,4 +191,4 @@ URL + contenu (plugin ou CLI)
 |-------|-----|--------------|
 | URL | `url` dans frontmatter `*.offre.md` | Skip total si deja analysee. Override : `--refresh` |
 | Entite | `02_Companies/{slug}.md` | Skip CompanyAnalyzer si fichier existe. Override : `--refresh` |
-| Docs perso | `cache_control: ephemeral` (API Anthropic) | Automatique selon flag `cache` dans `vault_layout.yaml` |
+| Docs perso | `cache_control: ephemeral` (API Anthropic) | Automatique selon flag `cache` dans `config.yaml` > vault.personal_docs |
