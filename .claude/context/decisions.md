@@ -81,7 +81,7 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Date** : 2026-05-19
 
 ### vault_slug — préserver espaces et accents pour Obsidian
-**Decision** : la fonction `vault_slug()` (dans `app/utils/paths.py`) préserve espaces, accents et parenthèses dans les noms de fichiers. Seuls les caractères FS interdits sont remplacés (`/` → `_`, `:` → `-`, `\` → `_`, `|` → `-`, `*` → `_`, `?<>"` retirés). L'ancienne `safe_slug()` (python-slugify, ASCII, tirets) est conservée pour d'éventuels besoins hors vault.
+**Decision** : la fonction `vault_slug()` (dans `app/utils/paths.py`) préserve espaces, accents et parenthèses dans les noms de fichiers. Seuls les caractères FS interdits sont remplacés (`/` → `_`, `:` → `-`, `\` → `_`, `|` → `-`, `*` → `_`, `?<>`" retirés). L'ancienne `safe_slug()` (python-slugify, ASCII, tirets) est conservée pour d'éventuels besoins hors vault.
 **Context** : Obsidian gère bien les noms de fichiers avec espaces et accents. Le slug `Société Générale - Data Engineer - 2026-04-22` est plus lisible que `Societe-Generale-Data-Engineer-2026-04-22` dans le vault. Aligné avec la convention définie dans APP_INTEGRATION_SPEC.md §3.
 **Alternatives** : ASCII-only (safe_slug existant — moins lisible dans le vault), URL-encoding (inutilement complexe).
 **Date** : 2026-05-19
@@ -163,3 +163,15 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Context** : le prompt rewritten avec directives de ton issues de Personnalite.md + 1 exemple (Beta.gouv DIALOG) couvre le besoin d'alignement stylistique. Le few-shot dynamique ajoutait de la complexité (scan du vault, sélection des meilleurs exemples, injection conditionnelle) pour un gain incertain. Les ancres narratives dans le prompt servent de substitut.
 **Alternatives** : implémenter le few-shot (complexité non justifiée à ce stade).
 **Date** : 2026-05-24
+
+### Config unique `config.yaml` — vault + LLM + serveur
+**Decision** : toute la config métier (vault, modèles LLM, températures, seuils, serveur) vit dans un seul `config.yaml` à la racine. `.env` ne contient que les secrets (API keys, AUTH_TOKEN).
+**Context** : la config était split entre `vault_layout.yaml` (vault) et `.env` (modèles, températures, seuils). C'était incohérent — un fichier YAML structuré et un fichier KEY=VALUE mélangés. L'homogénéisation simplifie la mental model : un fichier pour la config métier versionnable, un fichier pour les secrets sensibles.
+**Alternatives** : garder le split (status quo — fragmentation), tout mettre dans `.env` (pas structuré pour du nesting), YAML par domaine (`vault_layout.yaml` + `llm_config.yaml` — plus de fichiers).
+**Date** : 2026-05-26
+
+### Pipeline accepte `app_config` optionnel
+**Decision** : `Pipeline.__init__` reçoit `settings: Settings` (secrets) et `app_config: AppConfig | None = None`. Si `app_config` est absent, il appelle `get_app_config()`.
+**Context** : le mode CLI permet d'override la température via `--temperature`. Avec `get_app_config()` en `lru_cache`, modifier la config globale polluerait tous les appels futurs. Passer une copie locale (`model_copy(deep=True)`) au `Pipeline` isole l'override.
+**Alternatives** : monkeypatch `get_app_config()` en CLI (fragile, affecte le cache), ne pas supporter `--temperature` en CLI (régression UX).
+**Date** : 2026-05-26
