@@ -398,31 +398,21 @@ class TestFactory:
 
 class TestConfigHelpers:
     def test_resolve_model_fallback(self):
-        from app.config import Settings
-        s = Settings(
-            obsidian_vault_path="/tmp/vault",
-            anthropic_api_key="key",
-            auth_token="tok",
-        )
-        assert s.resolve_model("analysis") == "claude-sonnet-4-20250514"
-        assert s.resolve_model("company") == "claude-sonnet-4-20250514"
-        assert s.resolve_model("generation") == "claude-sonnet-4-20250514"
+        from app.config import LLMModelsConfig
+        m = LLMModelsConfig()
+        assert m.resolve("analysis") == "claude-sonnet-4-20250514"
+        assert m.resolve("company") == "claude-sonnet-4-20250514"
+        assert m.resolve("generation") == "claude-sonnet-4-20250514"
 
     def test_resolve_model_override(self):
-        from app.config import Settings
-        s = Settings(
-            obsidian_vault_path="/tmp/vault",
-            anthropic_api_key="key",
-            auth_token="tok",
-            analysis_model="claude-haiku-3-20250414",
-        )
-        assert s.resolve_model("analysis") == "claude-haiku-3-20250414"
-        assert s.resolve_model("company") == "claude-sonnet-4-20250514"
+        from app.config import LLMModelsConfig
+        m = LLMModelsConfig(analysis="claude-haiku-3-20250414")
+        assert m.resolve("analysis") == "claude-haiku-3-20250414"
+        assert m.resolve("company") == "claude-sonnet-4-20250514"
 
     def test_api_keys_property(self):
         from app.config import Settings
         s = Settings(
-            obsidian_vault_path="/tmp/vault",
             anthropic_api_key="anth-key",
             auth_token="tok",
             openai_api_key="oai-key",

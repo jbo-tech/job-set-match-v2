@@ -1,4 +1,4 @@
-"""Chargement et validation de vault_layout.yaml.
+"""Chargement et validation de la section vault de config.yaml.
 
 Externalise la structure du vault Obsidian (chemins, docs perso) hors du code.
 Voir APP_INTEGRATION_SPEC.md §6 pour le contrat.
@@ -11,7 +11,6 @@ import logging
 from functools import lru_cache
 from pathlib import Path
 
-import yaml
 from pydantic import BaseModel, Field, model_validator
 from typing_extensions import Self
 
@@ -37,7 +36,7 @@ class VaultPaths(BaseModel):
 
 
 class VaultLayout(BaseModel):
-    """Représentation typée de vault_layout.yaml."""
+    """Représentation typée de la section vault de config.yaml."""
 
     vault_root: Path
     paths: VaultPaths = Field(default_factory=VaultPaths)
@@ -84,20 +83,16 @@ class VaultLayout(BaseModel):
         return self.vault_root / self.prompts[key]
 
 
-def load_vault_layout(yaml_path: Path | str = "vault_layout.yaml") -> VaultLayout:
-    """Charge et valide vault_layout.yaml depuis le disque."""
-    path = Path(yaml_path)
-    if not path.exists():
-        raise FileNotFoundError(f"vault_layout.yaml introuvable : {path.resolve()}")
+def load_vault_layout(yaml_path: Path | str = "config.yaml") -> VaultLayout:
+    """Charge la section vault depuis config.yaml."""
+    from app.config import load_app_config
 
-    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
-    if raw is None:
-        raise ValueError(f"vault_layout.yaml vide : {path.resolve()}")
-
-    return VaultLayout(**raw)
+    return load_app_config(yaml_path).vault
 
 
 @lru_cache
 def get_vault_layout() -> VaultLayout:
-    """Instance VaultLayout unique (cached) lue depuis vault_layout.yaml à la racine."""
-    return load_vault_layout()
+    """Instance VaultLayout unique (cached) lue depuis config.yaml."""
+    from app.config import get_app_config
+
+    return get_app_config().vault

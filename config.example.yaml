@@ -1,0 +1,53 @@
+# Configuration métier unique — vault + LLM + serveur.
+# Copier ce fichier en config.yaml et adapter les valeurs.
+# Les secrets (API keys, AUTH_TOKEN) restent dans .env.
+
+vault:
+  vault_root: /path/to/obsidian/vault
+
+  paths:
+    applications: 03_Applications
+    companies: 02_Companies
+    archive: 03_Applications/_Archive_V1
+
+  personal_docs:
+    cv:
+      path: 01_Profilage/Mon CV.md
+      cache: true
+    experiences:
+      path: 01_Profilage/Experiences/[!_]*.md
+      cache: true
+    pitch:
+      path: 01_Profilage/Mon Pitch.md
+      cache: true
+    profil:
+      path: 01_Profilage/Profil Professionnel.md
+      cache: true
+    personnalite:
+      path: 01_Profilage/Personnalite.md
+      cache: true
+    questions:
+      path: 01_Profilage/Questions cles.md
+      cache: false
+
+  prompts: {}
+
+llm:
+  models:
+    default: claude-sonnet-4-20250514
+    analysis: ""
+    company: ""
+    generation: ""
+    outreach: ""
+
+  temperatures:
+    analysis: 0.2
+    generation: 0.7
+    outreach: 0.5
+
+  max_tokens: 8192
+
+server:
+  score_threshold: 0.0
+  host: 127.0.0.1
+  port: 8000

@@ -14,7 +14,7 @@
 import asyncio
 import logging
 
-from app.config import Settings
+from app.config import AppConfig, Settings, get_app_config
 from app.llm import create_llm_client
 from app.models import AnalysisResult, AnalyzeRequest, AnalyzeResponse
 from app.services.company_analyzer import CompanyAnalyzer
@@ -27,7 +27,6 @@ from app.services.offer_analyzer import AnalysisError, OfferAnalyzer
 from app.services.outreach_generator import OutreachGenerator
 from app.services.prompt_loader import PromptLoader
 from app.utils.token_logger import get_stats
-from app.vault_layout import get_vault_layout
 
 logger = logging.getLogger(__name__)
 
@@ -37,24 +36,26 @@ MIN_CONTENT_LENGTH = 200
 class Pipeline:
     """Pipeline d'analyse réutilisable (instancié une fois au démarrage)."""
 
-    def __init__(self, settings: Settings) -> None:
+    def __init__(self, settings: Settings, app_config: AppConfig | None = None) -> None:
         self.settings = settings
-        self.vault_layout = get_vault_layout()
+        self.app_config = app_config or get_app_config()
+        self.vault_layout = self.app_config.vault
         self.doc_loader = DocumentLoader(self.vault_layout)
         self.prompt_loader = PromptLoader(self.vault_layout)
 
         api_keys = settings.api_keys
+        llm = self.app_config.llm
 
-        analysis_client = create_llm_client(settings.resolve_model("analysis"), api_keys)
-        company_client = create_llm_client(settings.resolve_model("company"), api_keys)
-        generation_client = create_llm_client(settings.resolve_model("generation"), api_keys)
+        analysis_client = create_llm_client(llm.models.resolve("analysis"), api_keys)
+        company_client = create_llm_client(llm.models.resolve("company"), api_keys)
+        generation_client = create_llm_client(llm.models.resolve("generation"), api_keys)
 
         self.offer_analyzer = OfferAnalyzer(
             analysis_client,
             self.doc_loader,
             prompt=self.prompt_loader.load("analysis"),
-            max_tokens=settings.max_tokens,
-            temperature=settings.analysis_temperature,
+            max_tokens=llm.max_tokens,
+            temperature=llm.temperatures.get("analysis", 0.2),
         )
         self.content_fetcher = ContentFetcher()
         self.company_analyzer = CompanyAnalyzer(
@@ -62,22 +63,22 @@ class Pipeline:
             self.doc_loader,
             prompt=self.prompt_loader.load("company"),
             brave_api_key=settings.brave_api_key,
-            max_tokens=settings.max_tokens,
-            temperature=settings.analysis_temperature,
+            max_tokens=llm.max_tokens,
+            temperature=llm.temperatures.get("analysis", 0.2),
         )
         self.cover_letter_generator = CoverLetterGenerator(
             generation_client,
             self.doc_loader,
             prompt=self.prompt_loader.load("generation"),
-            max_tokens=settings.max_tokens,
-            temperature=settings.generation_temperature,
+            max_tokens=llm.max_tokens,
+            temperature=llm.temperatures.get("generation", 0.7),
         )
         self.outreach_generator = OutreachGenerator(
             generation_client,
             self.doc_loader,
             prompt=self.prompt_loader.load("outreach"),
             max_tokens=4096,
-            temperature=0.5,
+            temperature=llm.temperatures.get("outreach", 0.5),
         )
         self.obsidian_writer = ObsidianWriter(self.vault_layout)
 
@@ -105,7 +106,7 @@ class Pipeline:
                 company_report = await self._analyze_company(company_name)
 
             should_generate_letter = _should_generate_letter(
-                analysis, self.settings.score_threshold
+                analysis, self.app_config.server.score_threshold
             )
             logger.info(
                 "Décision : %s (chance=%s, generate_letter=%s)",

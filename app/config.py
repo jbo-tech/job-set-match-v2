@@ -1,47 +1,79 @@
-"""Configuration centralisée chargée depuis les variables d'environnement."""
+"""Configuration centralisée — secrets via .env, métier via config.yaml."""
 
 from functools import lru_cache
 from pathlib import Path
 
-from pydantic import Field
+import yaml
+from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
+
+from app.vault_layout import VaultLayout
+
+
+class LLMModelsConfig(BaseModel):
+    """Mapping modèles par service."""
+
+    default: str = "claude-sonnet-4-20250514"
+    analysis: str = ""
+    company: str = ""
+    generation: str = ""
+    outreach: str = ""
+
+    def resolve(self, service: str) -> str:
+        """Retourne le modèle pour un service, fallback sur default."""
+        override = getattr(self, service, "")
+        return override or self.default
+
+
+class LLMConfig(BaseModel):
+    """Paramètres LLM (modèles, températures, limites)."""
+
+    models: LLMModelsConfig = Field(default_factory=LLMModelsConfig)
+    temperatures: dict[str, float] = Field(
+        default_factory=lambda: {
+            "analysis": 0.2,
+            "generation": 0.7,
+            "outreach": 0.5,
+        }
+    )
+    max_tokens: int = 8192
+
+
+class ServerConfig(BaseModel):
+    """Paramètres serveur et métier."""
+
+    score_threshold: float = 0.0
+    host: str = "127.0.0.1"
+    port: int = 8000
+
+
+_PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+
+
+class AppConfig(BaseModel):
+    """Configuration métier unique lue depuis config.yaml."""
+
+    vault: VaultLayout
+    llm: LLMConfig = Field(default_factory=LLMConfig)
+    server: ServerConfig = Field(default_factory=ServerConfig)
 
 
 class Settings(BaseSettings):
-    """Paramètres applicatifs lus depuis .env."""
+    """Paramètres secrets lus depuis .env."""
 
-    # Obsidian — chemins détaillés dans vault_layout.yaml (§6 spec)
-    obsidian_vault_path: Path
-
-    # API keys
+    # API keys (Anthropic obligatoire, les autres optionnels)
     anthropic_api_key: str
     brave_api_key: str = ""
 
     # Sécurité
     auth_token: str
 
-    # Score gate
-    score_threshold: float = 0.0
-
-    # Modèles LLM — per-service overrides, fallback sur default_model
-    default_model: str = "claude-sonnet-4-20250514"
-    analysis_model: str = ""
-    company_model: str = ""
-    generation_model: str = ""
-    max_tokens: int = 8192
-    analysis_temperature: float = 0.2
-    generation_temperature: float = 0.7
-
-    # API keys providers (Anthropic est obligatoire, les autres optionnels)
+    # Providers optionnels
     openai_api_key: str = ""
     mistral_api_key: str = ""
     deepseek_api_key: str = ""
     groq_api_key: str = ""
     google_api_key: str = ""
-
-    # Serveur
-    host: str = "127.0.0.1"
-    port: int = 8000
 
     model_config = SettingsConfigDict(
         env_file=".env",
@@ -49,11 +81,6 @@ class Settings(BaseSettings):
         case_sensitive=False,
         extra="ignore",
     )
-
-    def resolve_model(self, service: str) -> str:
-        """Resolve model_id for a service, falling back to default_model."""
-        override = getattr(self, f"{service}_model", "")
-        return override or self.default_model
 
     @property
     def api_keys(self) -> dict[str, str]:
@@ -70,3 +97,23 @@ class Settings(BaseSettings):
 def get_settings() -> Settings:
     """Retourne l'instance Settings unique (cached)."""
     return Settings()
+
+
+def load_app_config(yaml_path: Path | str | None = None) -> AppConfig:
+    """Charge et valide config.yaml depuis le disque."""
+    if yaml_path is None:
+        path = _PACKAGE_ROOT / "config.yaml"
+    else:
+        path = Path(yaml_path)
+    if not path.exists():
+        raise FileNotFoundError(f"config.yaml introuvable : {path.resolve()}")
+    raw = yaml.safe_load(path.read_text(encoding="utf-8"))
+    if raw is None:
+        raise ValueError(f"config.yaml vide : {path.resolve()}")
+    return AppConfig(**raw)
+
+
+@lru_cache
+def get_app_config(yaml_path: Path | str | None = None) -> AppConfig:
+    """Retourne l'instance AppConfig unique (cached)."""
+    return load_app_config(yaml_path)

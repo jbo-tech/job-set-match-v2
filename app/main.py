@@ -10,7 +10,7 @@ from pathlib import Path
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.config import get_settings
+from app.config import get_app_config, get_settings
 from app.middleware.auth import AuthMiddleware
 from app.models import AnalyzeRequest, AnalyzeResponse
 from app.pipeline import Pipeline
@@ -43,7 +43,8 @@ async def lifespan(app: FastAPI):
     """Initialisation au démarrage et nettoyage à l'arrêt."""
     global _pipeline, _semaphore
     settings = get_settings()
-    logger.info("Démarrage de l'app — vault=%s", settings.obsidian_vault_path)
+    app_config = get_app_config()
+    logger.info("Démarrage de l'app — vault=%s", app_config.vault.vault_root)
     _pipeline = Pipeline(settings)
     _semaphore = asyncio.Semaphore(1)
     yield
@@ -132,9 +133,11 @@ async def _cli_main(
         echo "contenu offre" | uv run python -m app.main https://example.com/offre
     """
     settings = get_settings()
+    app_config = get_app_config()
     if temperature is not None:
-        settings = settings.model_copy(update={"generation_temperature": temperature})
-    pipeline = Pipeline(settings)
+        app_config = app_config.model_copy(deep=True)
+        app_config.llm.temperatures["generation"] = temperature
+    pipeline = Pipeline(settings, app_config)
 
     if content_path:
         from pathlib import Path

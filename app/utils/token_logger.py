@@ -8,7 +8,7 @@ import logging
 from dataclasses import dataclass, field
 from threading import Lock
 
-from app.config import get_settings
+from app.config import get_app_config
 from app.utils.pricing import resolve_model_pricing
 
 logger = logging.getLogger(__name__)
@@ -38,11 +38,10 @@ def log_usage(usage, operation: str, model_id: str | None = None) -> float:
 
     `usage` peut être un objet Anthropic Usage, un LLMResponse Usage,
     ou tout objet avec les attributs token count.
-    `model_id` est le modèle réel utilisé (fallback sur settings.default_model).
+    `model_id` est le modèle réel utilisé (fallback sur config.yaml default).
     """
     if model_id is None:
-        settings = get_settings()
-        model_id = settings.default_model
+        model_id = get_app_config().llm.models.default
     pricing = resolve_model_pricing(model_id)
 
     in_tokens = getattr(usage, "input_tokens", 0)

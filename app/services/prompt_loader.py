@@ -1,6 +1,6 @@
 """Chargement des prompts depuis le vault Obsidian.
 
-Source de vérité : vault_layout.yaml > prompts.
+Source de vérité : config.yaml > vault.prompts.
 Chaque prompt est un fichier Markdown dans le vault. Le loader lit le contenu,
 strip le frontmatter YAML et les blocs de code englobants, et retourne le texte
 brut. Fallback sur les constantes Python (app/prompts/) si le fichier n'existe pas.

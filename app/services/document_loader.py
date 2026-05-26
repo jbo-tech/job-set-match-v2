@@ -1,6 +1,6 @@
 """Chargement des documents personnels depuis le vault Obsidian.
 
-Source de vérité : `vault_layout.yaml` (§6 spec). Chaque entrée `personal_docs`
+Source de vérité : `config.yaml` > vault.personal_docs (§6 spec). Chaque entrée
 peut pointer vers un fichier unique ou un motif glob (ex: split d'expériences
 par poste). Le loader résout le glob en runtime, lit chaque fichier et
 concatène le contenu sous une seule clé.
