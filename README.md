@@ -82,7 +82,7 @@ Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèle
 | `GROQ_API_KEY` | Cle API Groq | *(vide)* |
 | `GOOGLE_API_KEY` | Cle API Google (Gemini) | *(vide)* |
 
-### `config.yaml` — config métier
+### `config.yaml` — config metier
 
 | Section | Cle | Description | Defaut |
 |---------|-----|-------------|--------|
@@ -90,14 +90,36 @@ Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèle
 | `vault` | `paths` | Chemins relatifs (applications, companies, archive) | voir fichier |
 | `vault` | `personal_docs` | Docs perso injectes dans les prompts | voir fichier |
 | `llm.models` | `default` | Modele par defaut | `claude-sonnet-4-20250514` |
-| `llm.models` | `analysis` | Override modele analyse offre | `">>fallback` |
-| `llm.models` | `company` | Override modele analyse entreprise | `">>fallback` |
-| `llm.models` | `generation` | Override modele generation lettre | `">>fallback` |
-| `llm.models` | `outreach` | Override modele outreach | `">>fallback` |
-| `llm` | `temperatures` | Temperatures par tache (analysis, generation, outreach) | `0.2 / 0.7 / 0.5` |
-| `llm` | `max_tokens` | Tokens max par reponse | `8192` |
-| `server` | `score_threshold` | Seuil `chanceRating` pour generer la lettre | `0.0` |
+| `llm.models` | `analysis` | Override modele analyse offre | `""` (fallback) |
+| `llm.models` | `company` | Override modele analyse entreprise | `""` (fallback) |
+| `llm.models` | `generation` | Override modele generation lettre | `""` (fallback) |
+| `llm.models` | `outreach` | Override modele outreach | `""` (fallback) |
+| `llm` | `temperatures` | Temperature par tache : `analysis` (scoring, ~0.2), `generation` (lettre, ~0.7), `outreach` (~0.5) | `0.2 / 0.7 / 0.5` |
+| `llm` | `max_tokens` | Tokens max par reponse LLM | `8192` |
+| `server` | `score_threshold` | Seuil `chanceRating` (0-100) pour generer la lettre. `0.0` = toujours | `0.0` |
 | `server` | `host` / `port` | Bind serveur | `127.0.0.1:8000` |
+
+#### Modeles multi-provider
+
+Le provider est determine par le **prefixe** du `model_id`. Ajouter la cle API correspondante dans `.env`.
+
+| Prefixe | Provider | Cle API `.env` | Exemples |
+|---------|----------|----------------|----------|
+| `claude-*` | Anthropic | `ANTHROPIC_API_KEY` | `claude-sonnet-4-20250514`, `claude-haiku-4-20250514` |
+| `gpt-*`, `o1-*`, `o3-*`, `o4-*`, `chatgpt-*` | OpenAI | `OPENAI_API_KEY` | `gpt-4o`, `gpt-4o-mini`, `o4-mini` |
+| `mistral*` | Mistral | `MISTRAL_API_KEY` | `mistral-large-latest`, `mistral-small-latest` |
+| `deepseek*` | DeepSeek | `DEEPSEEK_API_KEY` | `deepseek-chat`, `deepseek-reasoner` |
+| `groq/*` | Groq | `GROQ_API_KEY` | `groq/llama-3.1-70b-versatile` |
+| `gemini*` | Google | `GOOGLE_API_KEY` | `gemini-2.5-flash`, `gemini-2.5-pro` |
+
+Exemple — utiliser GPT-4o par defaut, Mistral pour la lettre, et Claude pour l'analyse :
+```yaml
+llm:
+  models:
+    default: gpt-4o-mini
+    analysis: claude-sonnet-4-20250514
+    generation: mistral-large-latest
+```
 
 ## Structure du projet
 

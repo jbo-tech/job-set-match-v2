@@ -33,6 +33,16 @@ vault:
   prompts: {}
 
 llm:
+  # Choix des modèles — le préfixe du model_id détermine le provider utilisé.
+  # Préfixes supportés :
+  #   claude-*           → Anthropic      (ex: claude-sonnet-4-20250514, claude-opus-4-20250514)
+  #   gpt-*, o1-*, o3-*, o4-*, chatgpt-* → OpenAI (ex: gpt-4o, gpt-4o-mini, o4-mini)
+  #   mistral*           → Mistral        (ex: mistral-large-latest, mistral-small-latest)
+  #   deepseek*          → DeepSeek       (ex: deepseek-chat, deepseek-reasoner)
+  #   groq/*             → Groq           (ex: groq/llama-3.1-70b-versatile)
+  #   gemini*            → Google         (ex: gemini-2.5-flash, gemini-2.5-pro)
+  # La clé API correspondante doit être renseignée dans .env (ex: OPENAI_API_KEY, MISTRAL_API_KEY…).
+  # Chaque service peut être vide ("") → fallback sur le modèle "default".
   models:
     default: claude-sonnet-4-20250514
     analysis: ""
@@ -40,6 +50,10 @@ llm:
     generation: ""
     outreach: ""
 
+  # Température par tâche (0.0 = déterministe → 1.0+ = créatif).
+  #   analysis   — scoring de l'offre, on veut de la cohérence → basse
+  #   generation — lettre de motivation, on veut du style → élevée
+  #   outreach   — accroche LinkedIn / email, intermédiaire
   temperatures:
     analysis: 0.2
     generation: 0.7
@@ -48,6 +62,8 @@ llm:
   max_tokens: 8192
 
 server:
+  # Seuil du score chanceRating (0-100) à partir duquel la lettre de motivation
+  # et l'outreach sont générés. 0.0 = toujours générer.
   score_threshold: 0.0
   host: 127.0.0.1
   port: 8000

@@ -4,11 +4,19 @@
 Outil personnel de veille emploi : capture d'offre depuis Firefox → analyse Claude (offre + entreprise + profil) → dossier structuré dans vault Obsidian → dashboard via Obsidian Bases.
 
 ## Focus actuel
-Config homogénéisée (vault + LLM + serveur dans `config.yaml`, `.env` réduit aux secrets). 140 tests passent. Prochaine étape : test E2E manuel pour valider la lecture de `config.yaml` en conditions réelles.
+Documentation de la configuration utilisateur. Le README et `config.example.yaml` décrivent maintenant la config multi-provider et les réglages avancés (températures, score_threshold). Prochaine étape : test E2E manuel pour valider la lecture de `config.yaml` en conditions réelles.
 
 ## Log
 
 ### 2026-05-26
+- Done: Documentation de la configuration multi-provider.
+  - **README.md** : nouvelle sous-section "Modèles multi-provider" avec tableau des préfixes/providers/clés API et exemple de configuration mixte.
+  - **README.md** : descriptions enrichies pour `temperatures` (rôle par tâche : cohérence vs style), `max_tokens` et `score_threshold` (seuil chanceRating 0-100).
+  - **config.example.yaml** : commentaires ajoutés sur la section `llm.models` (préfixes supportés, providers, exemples), la section `temperatures` (explication par tâche), `max_tokens` et `score_threshold`.
+  - **`llm.models.*`** : les champs d'override vides (`""`) tombent sur `default` ; un champ non-vide surcharge le modèle pour la tâche correspondante.
+- Next : test E2E manuel (analyser une vraie offre, vérifier que `config.yaml` est bien lu et que les overrides de modèles fonctionnent).
+
+### 2026-05-26 (plus tôt)
 - Done: Homogénéisation complète de la configuration — fusion de `vault_layout.yaml` et config métier du `.env` dans un seul `config.yaml`.
   - **Nouveau `config.yaml`** : sections `vault` (anciennement `vault_layout.yaml`), `llm` (modèles par tâche avec fallback, températures, max_tokens), `server` (score_threshold, host, port).
   - **`.env.example` allégé** : uniquement les secrets (API keys, AUTH_TOKEN). `config.yaml` ajouté à `.gitignore` ; `config.example.yaml` sert de template versionné.
@@ -19,7 +27,7 @@ Config homogénéisée (vault + LLM + serveur dans `config.yaml`, `.env` réduit
   - **Doc** : `README.md` et `CLAUDE.md` mis à jour (`server` au lieu de `app`, `outreach` documenté).
 - Tests : 140/140 passent.
 - Problèmes : accès Read/Bash bloqué sur `.env.example` (contourné via `python3 -c`). Import circulaire `app.config` ↔ `app.vault_layout` résolu par import local.
-- Next : test E2E manuel (analyser une vraie offre, vérifier que `config.yaml` est bien lu et que les overrides de modèles fonctionnent).
+- Next : test E2E manuel.
 
 ### 2026-05-24
 - Done: Direction 2 (prompting lettre) + Direction 4 (outreach) + revert prompts vers le repo.
@@ -39,23 +47,15 @@ Config homogénéisée (vault + LLM + serveur dans `config.yaml`, `.env` réduit
   - **Abandon** : Direction 3 (few-shot dynamique) abandonnée.
 - Tests : 140/140 passent (+21 net vs session précédente).
 - Problèmes : aucun bloquant.
-- Next : test E2E complet (analyser une vraie offre et vérifier les 4 artefacts : analyse, lettre, outreach, rapport entreprise). Calibrer la qualité du nouveau prompt lettre vs l'ancien. Vérifier que le prompt outreach produit du LinkedIn utilisable (280 chars). Direction 5 (prep entretien) reste disponible.
+- Next : test E2E complet.
 
 ### 2026-05-23
 - Done: Abstraction LLM multi-provider complète.
-  - **Module `app/llm/`** : `LLMClient` Protocol + `AnthropicLLMClient` (prompt cache préservé) + `OpenAILLMClient` (couvre GPT, Mistral, Groq, DeepSeek, Gemini via `base_url`) + factory par préfixe model_id.
-  - **Config** : `ANALYSIS_MODEL`, `COMPANY_MODEL`, `GENERATION_MODEL` par service (fallback `DEFAULT_MODEL`). API keys par provider (`OPENAI_API_KEY`, `MISTRAL_API_KEY`, `DEEPSEEK_API_KEY`, `GROQ_API_KEY`, `GOOGLE_API_KEY`).
-  - **Migration services** : OfferAnalyzer, CompanyAnalyzer, CoverLetterGenerator découplés du SDK Anthropic, reçoivent chacun leur `LLMClient`.
-  - **Tool use abstraction** : `format_assistant_message()` + `format_tool_results()` sur le Protocol — CompanyAnalyzer provider-agnostic (plus de isinstance checks).
-  - **Fix token_logger** : `log_usage()` reçoit le `model_id` réel (plus de résolution via `settings.default_model` — bug latent corrigé).
-  - **DocumentLoader** : nouveau `build_system_text()` pour providers non-Anthropic (flatten des blocks en texte).
-  - **Dépendance** : `openai>=1.0` ajoutée à pyproject.toml.
 - Tests : 119/119 passent (+31 net vs session précédente).
-- Problèmes : aucun bloquant.
-- Next : directions /explore restantes — prompting lettre (ton), few-shot candidatures validées, prep entretien, accroche LinkedIn/email.
+- Next : directions /explore restantes.
 
 ### 2026-05-22
-- Done: Audit complet du codebase (sécurité, optim, homogénéité, robustesse, maintenabilité) suivi d'un plan en 6 groupes et implémentation de tous les 15 items actionnables.
+- Done: Audit complet du codebase + implémentation de tous les 15 items actionnables.
 - Tests : 88/88 passent (+25 net vs session précédente).
 
 ### 2026-05-20
