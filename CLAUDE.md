@@ -64,8 +64,8 @@ Quand pertinent, lire :
 - Travail en cours : `.claude/context/status.md`
 - Erreurs passees : `.claude/context/anti-patterns.md`
 - Decisions techniques : `.claude/context/decisions.md`
-- Plan detaille : `V2_PLAN.md`
-- Spec vault : `APP_INTEGRATION_SPEC.md`
+- Carte du systeme : `docs/architecture.md`
+- Referentiel + drift : `docs/reference.md`
 
 ## Fin de session
 Lancer `/retro` avant d'arreter pour mettre a jour les fichiers de contexte.

@@ -25,7 +25,7 @@ uv run playwright install chromium
 # Configuration
 cp .env.example .env
 # Renseigner : ANTHROPIC_API_KEY, AUTH_TOKEN, OBSIDIAN_VAULT_PATH
-# Optionnel : BRAVE_API_KEY, SCORE_THRESHOLD, DEFAULT_MODEL
+# Optionnel : BRAVE_API_KEY (+ clés providers). Config métier → config.yaml
 ```
 
 ## Usage
@@ -96,7 +96,8 @@ Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèle
 | `llm.models` | `outreach` | Override modele outreach | `""` (fallback) |
 | `llm` | `temperatures` | Temperature par tache : `analysis` (scoring, ~0.2), `generation` (lettre, ~0.7), `outreach` (~0.5) | `0.2 / 0.7 / 0.5` |
 | `llm` | `max_tokens` | Tokens max par reponse LLM | `8192` |
-| `server` | `score_threshold` | Seuil `chanceRating` (0-100) pour generer la lettre. `0.0` = toujours | `0.0` |
+| `llm` | `max_tokens_outreach` | Tokens max pour l'outreach (sorties courtes) | `4096` |
+| `server` | `score_threshold` | Seuil `chanceRating` (1-10) pour generer la lettre. `0.0` = toujours | `0.0` |
 | `server` | `host` / `port` | Bind serveur | `127.0.0.1:8000` |
 
 #### Modeles multi-provider
