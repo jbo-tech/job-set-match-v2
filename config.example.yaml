@@ -60,9 +60,11 @@ llm:
     outreach: 0.5
 
   max_tokens: 8192
+  # Outreach = sorties courtes (accroche + email) → budget tokens réduit.
+  max_tokens_outreach: 4096
 
 server:
-  # Seuil du score chanceRating (0-100) à partir duquel la lettre de motivation
+  # Seuil du score chanceRating (1-10) à partir duquel la lettre de motivation
   # et l'outreach sont générés. 0.0 = toujours générer.
   score_threshold: 0.0
   host: 127.0.0.1

@@ -37,6 +37,8 @@ class LLMConfig(BaseModel):
         }
     )
     max_tokens: int = 8192
+    # Outreach = sorties courtes (accroche + email) → budget tokens réduit.
+    max_tokens_outreach: int = 4096
 
 
 class ServerConfig(BaseModel):

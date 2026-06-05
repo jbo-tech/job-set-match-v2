@@ -77,7 +77,7 @@ class Pipeline:
             generation_client,
             self.doc_loader,
             prompt=self.prompt_loader.load("outreach"),
-            max_tokens=4096,
+            max_tokens=llm.max_tokens_outreach,
             temperature=llm.temperatures.get("outreach", 0.5),
         )
         self.obsidian_writer = ObsidianWriter(self.vault_layout)
