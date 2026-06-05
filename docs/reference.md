@@ -10,18 +10,16 @@
 
 | # | Type | Quoi | Où regarder | Question |
 |---|---|---|---|---|
-| D1 | Doc ⇄ code | `score_threshold` documenté « (0-100) » alors que `chanceRating` est sur **1-10** (prompt) et que le seuil est comparé tel quel. Un seuil « 50 » ne déclencherait jamais la lettre. | `config.yaml` (commentaire), `README.md:99`, [_should_generate_letter](#config-clés-qui-comptent), `app/prompts/analysis.py:40-66` | Corriger les commentaires en « 0-10 », ou changer l'échelle ? |
-| D2 | Rule ⇄ absent | La section *Context* de `CLAUDE.md` renvoie à `V2_PLAN.md` et `APP_INTEGRATION_SPEC.md` qui **n'existent plus** à la racine. | `CLAUDE.md` (section ## Context) | Supprimer ces renvois, ou restaurer/retrouver les fichiers ? |
-| D3 | Doc stale | `README.md:28` liste `SCORE_THRESHOLD` et `DEFAULT_MODEL` comme variables `.env` optionnelles — c'était avant l'unification config ; elles vivent désormais dans `config.yaml`. Contredit `README.md:70`. | `README.md:28` | Retirer ces deux clés de l'exemple `.env`. |
-| D4 | Intent non appliqué | Le token doit être ASCII (imposé par le code + décision 2026-06-04), mais `.env.example` ne le documente pas. Fichier inaccessible aux outils (permissions `.env*`). | `.env.example` | Ajouter manuellement une note « AUTH_TOKEN : ASCII uniquement ». |
-| D5 | Choix non tracé | `OutreachGenerator` reçoit `max_tokens=4096` **codé en dur** dans le pipeline, alors que tous les autres services utilisent `llm.max_tokens` (8192). | `app/pipeline.py:80` | Intentionnel (sortie courte) ou oubli ? Sinon exposer en config. |
 | D6 | Choix non tracé (mineur) | `CompanyAnalyzer` utilise `temperatures.get("analysis", 0.2)` — il n'existe pas de clé `company` ; il réutilise la temp d'analyse sans décision dédiée. | `app/pipeline.py:67`, `config.yaml` (section `temperatures`) | Ajouter une clé `company`, ou documenter le partage ? |
 | D7 | Cosmétique | Import dupliqué : `from app.models import OutreachResult` (ligne 24) en plus du groupe ligne 19. | `app/pipeline.py:19,24` | Fusionner (sans impact fonctionnel). |
 
-**Docs en place** : aucun autre fichier `docs/` que `architecture.md` et ce
-référentiel (ils viennent d'être créés). Les specs `V2_PLAN.md` /
-`APP_INTEGRATION_SPEC.md` ne sont plus présentes (cf. D2). Rien à fusionner ni à
-supprimer pour l'instant.
+**Résolus depuis la passe précédente** (commits `08e266b`, `db96f96`) : D1 (échelle
+`score_threshold` 1-10), D2 (refs mortes CLAUDE.md → `docs/`), D3 (README `.env`),
+D4 (note ASCII `.env.example`), D5 (`max_tokens_outreach` en clé config). Ne
+restent que les deux mineurs ci-dessus, non demandés au dernier scope.
+
+**Docs en place** : `architecture.md` (carte) et ce référentiel — les deux seuls
+fichiers `docs/`, à jour. Aucun doc redondant/orphelin à fusionner ou supprimer.
 
 Hors de ces points, le code est **aligné** sur les décisions enregistrées — y
 compris la limite DNS rebinding, explicitement assumée (décision « Anti-SSRF :
@@ -72,6 +70,8 @@ echo "contenu" | python -m app.main <URL>
 - **Dédup** : `_maybe_fetch_fallback` ne fetch que si `needs_fetch` ou contenu
   `< MIN_CONTENT_LENGTH` (200). `url_already_analyzed` / `company_exists`
   court-circuitent si `refresh` est faux.
+- ⚠ drift D6 : `CompanyAnalyzer` est instancié avec la température `analysis`
+  (pas de clé `company`).
 
 ### Services (`app/services/`)
 
@@ -79,8 +79,8 @@ echo "contenu" | python -m app.main <URL>
 |---|---|---|
 | `OfferAnalyzer` | `analyze(content, url) -> AnalysisResult` | Un appel LLM → JSON structuré. Lève `AnalysisError` si parsing/échec → **fait échouer le pipeline**. |
 | `CompanyAnalyzer` | `analyze(company_name) -> str \| None` | Boucle tool-use (`MAX_TOOL_ITERATIONS=5`) + Brave Search. Si la limite est atteinte, **appel final sans tools** pour forcer une synthèse (décision dédiée). |
-| `CoverLetterGenerator` | `generate(analysis, offer_content) -> str` | Best-effort dans le pipeline. |
-| `OutreachGenerator` | `generate(analysis, offer_content) -> OutreachResult` | Accroche LinkedIn + email + suggestions CV. ⚠ drift D5 : `max_tokens=4096` codé en dur côté pipeline. |
+| `CoverLetterGenerator` | `generate(analysis, offer_content) -> str` | Best-effort dans le pipeline. `max_tokens=llm.max_tokens` (8192). |
+| `OutreachGenerator` | `generate(analysis, offer_content) -> OutreachResult` | Accroche LinkedIn + email + suggestions CV. `max_tokens=llm.max_tokens_outreach` (4096, clé config dédiée). |
 | `ContentFetcher` | `fetch_clean_text(url) -> str \| None` ; `capture_pdf(url) -> bytes \| None` | Anti-SSRF : `_validate_url` par **saut** (httpx `follow_redirects=False`, `MAX_REDIRECTS=5`) ; Playwright filtré par `_guard_route`. Limite DNS rebinding assumée. Browser Playwright lazy + persistant. |
 | `DocumentLoader` | `load() -> dict[str,str]` | Charge les docs perso du vault (glob), produit des blocs système ; honore le flag `cache` par doc. |
 | `ObsidianWriter` | `write(...) -> Path` ; `company_exists` ; `url_already_analyzed` | Slug `Entreprise - Poste - Date` ; suffixe hash si `unknown`. `ensure_within` garde-fou path traversal. |
@@ -103,7 +103,7 @@ echo "contenu" | python -m app.main <URL>
 ### Config — clés qui comptent
 
 Secrets (`.env`, via `Settings`) : `ANTHROPIC_API_KEY` (obligatoire), `AUTH_TOKEN`
-(obligatoire, **ASCII** — cf. D4), `BRAVE_API_KEY` + clés providers optionnelles.
+(obligatoire, **ASCII** — en-têtes HTTP), `BRAVE_API_KEY` + clés providers optionnelles.
 
 Métier (`config.yaml`, via `AppConfig`) :
 
@@ -112,8 +112,9 @@ Métier (`config.yaml`, via `AppConfig`) :
 | `vault` | `vault_root`, `paths`, `personal_docs`, `prompts` | Racine vault, dossiers, docs perso (cacheables), override prompts. |
 | `llm` | `models.{default,analysis,company,generation,outreach}` | Modèle par service ; vide → `default`. Préfixe → provider. |
 | `llm` | `temperatures.{analysis,generation,outreach}` | Température par tâche. ⚠ D6 : pas de clé `company` (réutilise `analysis`). |
-| `llm` | `max_tokens` | 8192 par défaut (⚠ D5 : outreach ignore cette valeur). |
-| `server` | `score_threshold` | Seuil sur `chanceRating`. **⚠ D1 : échelle réelle 1-10, pas 0-100.** `0.0` = toujours générer. |
+| `llm` | `max_tokens` | 8192 par défaut (offer/company/lettre). |
+| `llm` | `max_tokens_outreach` | 4096 par défaut (sorties courtes : accroche + email). |
+| `server` | `score_threshold` | Seuil sur `chanceRating` (**échelle 1-10**, cf. `prompts/analysis.py`). `0.0` = toujours générer. |
 | `server` | `host`, `port` | Bind serveur (défaut `127.0.0.1:8000`). |
 
 **Résolution** : `LLMModelsConfig.resolve(service)` → override ou `default`.
