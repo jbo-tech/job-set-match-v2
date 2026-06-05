@@ -5,9 +5,8 @@
  * dans l'onglet actif, puis POST /analyze sur le backend local avec le token
  * d'auth stocké dans browser.storage.local.
  *
- * Pattern message-based pour que le popup ne soit pas lié au cycle de vie
- * de la requête HTTP (il peut se fermer, la réponse est renvoyée via
- * storage.local en fallback si le port est coupé).
+ * Pattern message-based : le popup envoie un message et attend la réponse ;
+ * la logique HTTP vit ici, découplée de l'UI.
  */
 
 const DEFAULT_BACKEND_URL = "http://127.0.0.1:8000";
@@ -23,8 +22,10 @@ async function getBackendUrl() {
 }
 
 async function getAuthToken() {
+  // Le token est validé (ASCII uniquement) à la saisie dans le popup ; on le
+  // relit tel quel, sans mutation silencieuse.
   const { authToken } = await browser.storage.local.get("authToken");
-  return (authToken || "").replace(/[^\x00-\x7F]/g, "-");
+  return (authToken || "").trim();
 }
 
 // -----------------------------------------------------------------------------

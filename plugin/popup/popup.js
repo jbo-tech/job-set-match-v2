@@ -85,7 +85,9 @@ async function handleAnalyze() {
 // -----------------------------------------------------------------------------
 
 function checkUrlWarning(url) {
-  if (url && !/^https?:\/\/(127\.0\.0\.1|localhost)(:|\/|$)/.test(url)) {
+  // Seul 127.0.0.1 est couvert par host_permissions du manifest ; `localhost`
+  // déclenche donc volontairement l'avertissement (le fetch échouerait sinon).
+  if (url && !/^https?:\/\/127\.0\.0\.1(:|\/|$)/.test(url)) {
     urlWarning.textContent =
       "Attention : URL non locale — le token transitera par le réseau.";
     urlWarning.style.display = "block";
@@ -108,10 +110,17 @@ async function loadSettings() {
 }
 
 async function saveSettings() {
-  const token = authTokenInput.value.trim().replace(/[^\x00-\x7F]/g, "-");
+  const token = authTokenInput.value.trim();
   const url = backendUrlInput.value.trim().replace(/\/+$/, "");
   if (!token) {
     settingsStatus.textContent = "Token vide.";
+    settingsStatus.style.color = "#b00020";
+    return;
+  }
+  // Les en-têtes HTTP sont ASCII : on rejette explicitement plutôt que de muter
+  // le token silencieusement (ce qui ferait échouer l'auth sans message clair).
+  if (/[^\x00-\x7F]/.test(token)) {
+    settingsStatus.textContent = "Token invalide : caractères ASCII uniquement.";
     settingsStatus.style.color = "#b00020";
     return;
   }
