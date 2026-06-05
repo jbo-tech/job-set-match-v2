@@ -29,6 +29,9 @@ DEFAULT_UA = (
     "(KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
 )
 
+# Nombre maximum de redirections suivies avant abandon (chaque saut est revalidé).
+MAX_REDIRECTS = 5
+
 
 # --- Validation SSRF -----------------------------------------------------------
 
@@ -38,6 +41,13 @@ async def _validate_url(url: str) -> None:
 
     Lève ValueError si le scheme n'est pas http/https ou si l'hôte
     résout vers une adresse privée/réservée.
+
+    Limite connue (DNS rebinding) : la validation porte sur la résolution DNS
+    au moment de l'appel ; httpx/Playwright re-résolvent l'hôte au moment de la
+    connexion. Un domaine qui répond une IP publique ici puis une IP privée à
+    la connexion n'est donc pas couvert. Accepté pour cet outil personnel
+    (backend localhost, surface d'attaque limitée). Fermer ce trou imposerait
+    de forcer la connexion sur l'IP validée (transport httpx custom).
     """
     parsed = urlparse(url)
     if parsed.scheme not in ("http", "https"):
@@ -61,6 +71,28 @@ async def _validate_url(url: str) -> None:
             raise ValueError(
                 f"Adresse interdite : {hostname} résout vers {addr}"
             )
+
+
+async def _guard_route(route) -> None:
+    """Intercepteur Playwright : revalide chaque navigation (anti-SSRF).
+
+    Playwright suit les redirections HTTP et les navigations JS en interne,
+    après l'unique validation amont du `goto`. On rejoue donc la validation sur
+    chaque requête de navigation et on avorte celles qui ciblent un hôte
+    interne, avant que la connexion ne parte. Les sous-ressources (images, CSS)
+    ne sont pas revalidées pour ne pas multiplier les résolutions DNS.
+    """
+    request = route.request
+    if request.is_navigation_request():
+        try:
+            await _validate_url(request.url)
+        except ValueError as e:
+            logger.warning(
+                "capture_pdf navigation bloquée (SSRF) : %s — %s", request.url, e
+            )
+            await route.abort()
+            return
+    await route.continue_()
 
 
 class ContentFetcher:
@@ -113,27 +145,53 @@ class ContentFetcher:
 
         Retourne None en cas d'échec (timeout, HTTP error, parsing, SSRF).
         Le pipeline doit alors continuer avec le contenu original du plugin.
-        """
-        try:
-            await _validate_url(url)
-        except ValueError as e:
-            logger.warning("fetch_clean_text bloquée (SSRF) : %s — %s", url, e)
-            return None
 
+        Les redirections sont suivies manuellement (follow_redirects=False) afin
+        de revalider chaque saut : une URL publique qui redirige vers une IP
+        interne (vecteur SSRF classique) est ainsi bloquée avant la connexion.
+        """
         try:
             async with httpx.AsyncClient(
                 timeout=self.fetch_timeout,
-                follow_redirects=True,
+                follow_redirects=False,
                 headers={"User-Agent": DEFAULT_UA},
             ) as client:
-                response = await client.get(url)
-                response.raise_for_status()
-                html = response.text
+                current_url = url
+                # +1 : la requête initiale plus MAX_REDIRECTS sauts.
+                for _ in range(MAX_REDIRECTS + 1):
+                    try:
+                        await _validate_url(current_url)
+                    except ValueError as e:
+                        logger.warning(
+                            "fetch_clean_text bloquée (SSRF) : %s — %s", current_url, e
+                        )
+                        return None
+
+                    response = await client.get(current_url)
+                    if response.is_redirect:
+                        location = response.headers.get("location")
+                        if not location:
+                            logger.warning(
+                                "fetch_clean_text : redirection sans Location sur %s",
+                                current_url,
+                            )
+                            return None
+                        # Résolution des Location relatives en URL absolue.
+                        current_url = str(httpx.URL(current_url).join(location))
+                        continue
+
+                    response.raise_for_status()
+                    return _extract_main_text(response.text)
+
+                logger.warning(
+                    "fetch_clean_text : trop de redirections (>%d) sur %s",
+                    MAX_REDIRECTS,
+                    url,
+                )
+                return None
         except (httpx.HTTPError, httpx.TimeoutException) as e:
             logger.warning("fetch_clean_text échec sur %s : %s", url, e)
             return None
-
-        return _extract_main_text(html)
 
     # -------------------------------------------------------------------- pdf
 
@@ -163,6 +221,8 @@ class ContentFetcher:
         try:
             browser = await self._get_browser()
             context = await browser.new_context(user_agent=DEFAULT_UA)
+            # Revalide chaque navigation (redirections HTTP/JS) — cf. _guard_route.
+            await context.route("**/*", _guard_route)
             try:
                 page = await context.new_page()
                 await page.goto(
