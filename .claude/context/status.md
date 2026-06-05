@@ -4,9 +4,23 @@
 Outil personnel de veille emploi : capture d'offre depuis Firefox → analyse Claude (offre + entreprise + profil) → dossier structuré dans vault Obsidian → dashboard via Obsidian Bases.
 
 ## Focus actuel
-Durcissement sécurité post-audit (SSRF redirections, cohérences plugin). Prochaine étape : test E2E manuel pour valider la lecture de `config.yaml` en conditions réelles + valider le plugin avec un vrai Chromium (le guard navigation Playwright n'est testé qu'unitairement).
+Hygiène doc/config post-`/document` : drift résolu (D1–D5). Reste à committer (rien n'est commité depuis `1e5f687`). Prochaine étape : commit + `git add docs/`, puis test E2E manuel (`config.yaml` réel + plugin avec un vrai Chromium pour valider `_guard_route`).
 
 ## Log
+
+### 2026-06-05
+- Done: `/document` (génération docs d'orientation) → `/scope` → `/goal` (nettoyage drift).
+  - **`docs/architecture.md`** + **`docs/reference.md`** créés (stamp commit `1e5f687`) : carte du système (18 composants, diagramme mermaid du flux `/analyze`), référentiel de la surface publique, et table de **7 écarts** intention⇄code (D1–D7).
+  - **Drift corrigé (D1–D5)** :
+    - **D1** : commentaires `score_threshold` « 0-100 » → « 1-10 » (échelle réelle de `chanceRating`, cf. `prompts/analysis.py`) dans `config.yaml`, `config.example.yaml`, `README.md`. Doc-only, `_should_generate_letter` inchangé.
+    - **D2** : section *Context* de `CLAUDE.md` repointée vers `docs/architecture.md` + `docs/reference.md` (les renvois `V2_PLAN.md` / `APP_INTEGRATION_SPEC.md` étaient morts).
+    - **D5** : `max_tokens=4096` codé en dur (outreach) → clé config `LLMConfig.max_tokens_outreach` (défaut 4096) ; déclarée dans les 2 YAML + README ; `pipeline.py` l'utilise. Refactor pur, comportement inchangé.
+    - **D3** : `README:28` ne liste plus `SCORE_THRESHOLD` / `DEFAULT_MODEL` (déplacés en `config.yaml`).
+    - **D4** : note « AUTH_TOKEN ASCII uniquement » ajoutée à `.env.example` via workaround `python3 -c` (Read/Edit toujours bloqués sur `.env*`).
+  - **Hors scope** : D6 (température `company` réutilise la clé `analysis`) et D7 (import dupliqué `OutreachResult` dans `pipeline.py`) — laissés tels quels.
+- Tests : 150/150 passent (inchangé) ; chargement config vérifié (`max_tokens_outreach = 4096`).
+- À noter : `docs/reference.md` liste D1–D5 comme drift, désormais résolus → la table sera périmée une fois committé. Re-`/document` après commit.
+- Next : commit (`fix(config)` D5 + `docs` D1–D4) + `git add docs/` ; test E2E manuel.
 
 ### 2026-06-04
 - Done: Audit général (`/audit`) → scope (`/scope`) → implémentation (`/goal`) d'un lot de durcissement sécurité.

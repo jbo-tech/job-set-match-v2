@@ -187,3 +187,15 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Context** : les en-têtes HTTP doivent être ASCII (ByteString Firefox). Muter silencieusement transformait un token invalide en un autre token invalide → échec d'auth incompréhensible. Rejeter à la source donne un feedback clair et supprime la duplication de la sanitization (popup + service_worker).
 **Alternatives** : garder la double mutation (échec silencieux, code dupliqué), helper de sanitization partagé (résout la duplication mais garde la mutation silencieuse).
 **Date** : 2026-06-04
+
+### max_tokens_outreach — clé config dédiée
+**Decision** : le budget tokens de l'outreach est exposé via `LLMConfig.max_tokens_outreach` (défaut 4096), au lieu d'un `4096` codé en dur dans le pipeline. Les autres services gardent `llm.max_tokens` (8192).
+**Context** : l'outreach produit des sorties courtes (accroche LinkedIn + email), un budget réduit est justifié — mais un magic number non tracé invitait au doute (oubli ou intention ?). L'exposer en config rend l'intention explicite et le réglage modifiable sans toucher au code.
+**Alternatives** : garder 4096 codé en dur + commentaire (intention explicite mais non réglable), réutiliser `llm.max_tokens` (uniforme mais sur-alloue pour rien).
+**Date** : 2026-06-05
+
+### Docs d'orientation via /document (architecture.md + reference.md)
+**Decision** : la doc d'orientation vit dans `docs/architecture.md` (carte pédagogique) et `docs/reference.md` (référentiel + table de drift), générées depuis le code par `/document`. `CLAUDE.md` y renvoie (remplace les specs mortes `V2_PLAN.md` / `APP_INTEGRATION_SPEC.md`). Le README garde install/usage ; `.claude/context/*` reste la source de vérité des décisions/anti-patterns.
+**Context** : besoin de reprendre le contrôle détaillé d'un code qui bouge vite et de pouvoir l'enseigner. `/document` lit le code comme vérité-terrain et liste les écarts avec l'intention enregistrée — c'est ce cross-check qui a révélé D1 (échelle seuil).
+**Alternatives** : tout dans le README (mélange usage/architecture), garder les specs `*_SPEC.md` à la main (driftent, ici déjà disparues), pas de doc d'orientation (perte de contrôle au fil du temps).
+**Date** : 2026-06-05

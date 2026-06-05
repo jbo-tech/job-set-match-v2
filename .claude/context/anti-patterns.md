@@ -63,3 +63,9 @@ Erreurs rencontrées et comment les éviter. Ajoutés via `/retro`.
 **Cause** : la validation portait sur un seul point (l'entrée) alors que le client HTTP fait plusieurs requêtes (chaîne de redirections), chacune étant un vecteur SSRF distinct.
 **Solution** : `follow_redirects=False` + boucle manuelle revalidant chaque saut AVANT le `get` (cap `MAX_REDIRECTS`). Pour Playwright, intercepter via `context.route` et avorter les navigations vers un hôte interne. Règle générale : valider chaque requête réellement émise, pas seulement l'input. Limite résiduelle (DNS rebinding) à assumer/documenter si non fermée.
 **Date** : 2026-06-04
+
+### Commentaire de config qui ment sur l'échelle d'une valeur
+**Problème** : `config.yaml` (et le README) annonçaient `score_threshold` « (0-100) » alors que le code compare le seuil à `chanceRating`, noté sur **1-10** par le prompt. Un utilisateur réglant « 50 » en pensant à des pourcentages aurait bloqué la génération de lettre en permanence (max atteignable = 10). Détecté par `/document` (cross-check intention⇄code), pas à l'usage.
+**Cause** : le commentaire d'échelle a été écrit à côté de la clé sans le rattacher à la source de vérité de la valeur (le prompt qui impose `1-10 scale`). Aucun test ne couvre une annotation de doc.
+**Solution** : quand un commentaire de config affirme une plage numérique, la vérifier contre le validateur / le prompt / le modèle qui produit la valeur. Préférer pointer la source (« cf. analysis.py : 1-10 scale ») plutôt que recopier un range. `/document` est un bon filet pour ce type de drift silencieux.
+**Date** : 2026-06-05
