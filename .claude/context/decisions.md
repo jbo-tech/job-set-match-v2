@@ -175,3 +175,15 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Context** : le mode CLI permet d'override la température via `--temperature`. Avec `get_app_config()` en `lru_cache`, modifier la config globale polluerait tous les appels futurs. Passer une copie locale (`model_copy(deep=True)`) au `Pipeline` isole l'override.
 **Alternatives** : monkeypatch `get_app_config()` en CLI (fragile, affecte le cache), ne pas supporter `--temperature` en CLI (régression UX).
 **Date** : 2026-05-26
+
+### Anti-SSRF : revalidation par saut, pas IP-pinning
+**Decision** : `fetch_clean_text` suit les redirections manuellement (`follow_redirects=False`) et revalide chaque saut ; `capture_pdf` filtre les navigations via `context.route` + `_guard_route`. Le DNS rebinding (#2) reste documenté comme limite assumée, non fermé.
+**Context** : outil personnel, backend localhost → surface d'attaque limitée. Le trou réellement exploitable était la redirection vers une IP interne (la post-validation ne suffit pas : la connexion serait déjà partie). L'IP-pinning (forcer la connexion sur l'IP validée) fermerait aussi le rebinding mais impose un transport httpx custom — effort disproportionné ici.
+**Alternatives** : `follow_redirects=True` + validation post-hoc (laisse fuir la requête), IP-pinning complet (transport custom, sur-ingénierie), ne rien faire (le code prétendait protéger sans le faire).
+**Date** : 2026-06-04
+
+### Token plugin : rejet à la saisie plutôt que mutation silencieuse
+**Decision** : un token contenant des caractères non-ASCII est **refusé** au save (popup) avec un message explicite ; `getAuthToken` (service_worker) ne mute plus le token relu. Remplace l'ancienne stratégie « sanitiser via `.replace(/[^\x00-\x7F]/g, "-")` à la saisie ET à la lecture ».
+**Context** : les en-têtes HTTP doivent être ASCII (ByteString Firefox). Muter silencieusement transformait un token invalide en un autre token invalide → échec d'auth incompréhensible. Rejeter à la source donne un feedback clair et supprime la duplication de la sanitization (popup + service_worker).
+**Alternatives** : garder la double mutation (échec silencieux, code dupliqué), helper de sanitization partagé (résout la duplication mais garde la mutation silencieuse).
+**Date** : 2026-06-04

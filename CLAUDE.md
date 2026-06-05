@@ -1,5 +1,7 @@
 # Job Set & Match V2
 
+> https://github.com/jbo-tech/job-set-match-v2
+
 ## Stack
 - Python 3.11+, FastAPI, multi-provider LLM (Anthropic SDK + OpenAI SDK)
 - Appels Python directs : httpx + bs4 (fetch), Playwright (PDF), httpx REST (Brave Search)
@@ -22,7 +24,7 @@ uv run playwright install chromium           # setup Playwright (une fois)
 
 ## Securite
 - Auth : header `X-Auth-Token` verifie via `hmac.compare_digest`
-- SSRF : `_validate_url()` dans content_fetcher bloque IPs privees, schemes non-HTTP, DNS resolution
+- SSRF : `_validate_url()` dans content_fetcher bloque IPs privees, schemes non-HTTP, DNS resolution. Redirections revalidees par saut (httpx `follow_redirects=False` + boucle ; Playwright `_guard_route`). Limite assumee : DNS rebinding non couvert (cf. docstring)
 - Path traversal : `ensure_within()` dans paths.py
 - CORS : restreint aux extensions Firefox (`moz-extension://`)
 

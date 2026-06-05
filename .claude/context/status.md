@@ -4,9 +4,20 @@
 Outil personnel de veille emploi : capture d'offre depuis Firefox → analyse Claude (offre + entreprise + profil) → dossier structuré dans vault Obsidian → dashboard via Obsidian Bases.
 
 ## Focus actuel
-Documentation de la configuration utilisateur. Le README et `config.example.yaml` décrivent maintenant la config multi-provider et les réglages avancés (températures, score_threshold). Prochaine étape : test E2E manuel pour valider la lecture de `config.yaml` en conditions réelles.
+Durcissement sécurité post-audit (SSRF redirections, cohérences plugin). Prochaine étape : test E2E manuel pour valider la lecture de `config.yaml` en conditions réelles + valider le plugin avec un vrai Chromium (le guard navigation Playwright n'est testé qu'unitairement).
 
 ## Log
+
+### 2026-06-04
+- Done: Audit général (`/audit`) → scope (`/scope`) → implémentation (`/goal`) d'un lot de durcissement sécurité.
+  - **SSRF redirections (#1, `content_fetcher.py`)** : `fetch_clean_text` passe en `follow_redirects=False` + boucle manuelle qui revalide CHAQUE saut via `_validate_url` avant le `get` (cap `MAX_REDIRECTS=5`). Bloque le vecteur « URL publique → 302 → IP interne » avant la connexion. Résolution des `Location` relatives via `httpx.URL().join()`.
+  - **SSRF Playwright (#1)** : nouveau `_guard_route` câblé via `context.route("**/*", ...)` — avorte les requêtes de navigation vers un hôte interne (redirections HTTP/JS), avant connexion. Sous-ressources non revalidées (coût DNS).
+  - **DNS rebinding (#2)** : documenté comme limite assumée dans la docstring `_validate_url` (non codé — fermer imposerait un transport httpx custom forçant l'IP validée).
+  - **Plugin** : placeholder port `8001`→`8000` (popup.html) ; `checkUrlWarning` ne traite plus `localhost` comme local sûr (cohérent avec `host_permissions` 127.0.0.1 only) ; token non-ASCII **rejeté à la saisie** avec message explicite au lieu d'être muté silencieusement (popup.js) ; `getAuthToken` ne mute plus (service_worker.js) ; commentaire obsolète « storage.local fallback » supprimé.
+  - **#8** : `AnalyzeRequest.content` avait déjà `max_length=50_000` → verrouillé par `tests/test_models.py` (nouveau).
+- Tests : 150/150 passent (+10 net : 5 redirections SSRF, 3 guard Playwright, 2 borne content).
+- Problèmes : `.env.example` toujours inaccessible (permissions `.env*`) → note ASCII token non ajoutée à `.env.example` (contrainte appliquée dans le code). Lint préexistant `F541` ligne 308 de test_content_fetcher.py laissé tel quel (hors scope).
+- Next : test E2E manuel (offre réelle + config.yaml) ; valider le guard Playwright avec un vrai Chromium.
 
 ### 2026-05-26
 - Done: Documentation de la configuration multi-provider.

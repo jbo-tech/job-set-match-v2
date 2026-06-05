@@ -37,8 +37,8 @@ Erreurs rencontrées et comment les éviter. Ajoutés via `/retro`.
 ### Headers HTTP Firefox et caractères non-ASCII
 **Problème** : `Window.fetch` dans le service worker Firefox refusait d'envoyer la requête avec l'erreur "Cannot convert value to ByteString because the character at index 100 has value 8212".
 **Cause** : le token d'auth copié-collé depuis un éditeur rich-text contenait un em-dash (—, U+2014) au lieu d'un tiret ASCII (-). Firefox impose que les headers HTTP soient des ByteStrings (chars 0-255).
-**Solution** : sanitiser les valeurs de headers avec `.replace(/[^\x00-\x7F]/g, "-")` à la sauvegarde (popup) ET à la lecture (service worker). Double protection car l'ancien token peut persister en storage.local.
-**Date** : 2026-05-20
+**Solution** : ~~sanitiser via `.replace(/[^\x00-\x7F]/g, "-")` à la saisie ET à la lecture~~ → **rejeter** explicitement le token non-ASCII à la saisie (popup) avec un message clair ; ne pas muter à la lecture (service worker). La mutation silencieuse transformait un token invalide en un autre token invalide → échec d'auth incompréhensible. Cf. décision « Token plugin : rejet à la saisie plutôt que mutation silencieuse » (2026-06-04).
+**Date** : 2026-05-20 (solution révisée 2026-06-04)
 
 ### Defaults incohérents entre composants
 **Problème** : le port par défaut du plugin (8001) ne correspondait pas au port par défaut du backend (8000 dans config.py). Premier lancement = échec silencieux.
@@ -57,3 +57,9 @@ Erreurs rencontrées et comment les éviter. Ajoutés via `/retro`.
 **Cause** : restriction de sécurité de l'environnement sur les fichiers commençant par `.env`.
 **Solution** : contourner via `python3 -c "open('/path/.env.example').read()"` pour la lecture, et `python3 -c "open('/path/.env.example', 'w').write(content)"` pour l'écriture. Alternative : demander à l'utilisateur de copier-coller le contenu.
 **Date** : 2026-05-26
+
+### Validation SSRF qui ne couvre que l'URL initiale
+**Problème** : `_validate_url()` validait l'URL d'entrée puis `httpx.AsyncClient(follow_redirects=True)` suivait les 3xx sans revalider. Une URL publique pouvait rediriger (302) vers `127.0.0.1` / une IP interne, et la connexion partait quand même. Idem pour Playwright `page.goto` (redirections HTTP + navigations JS). La protection donnait une fausse impression de sécurité.
+**Cause** : la validation portait sur un seul point (l'entrée) alors que le client HTTP fait plusieurs requêtes (chaîne de redirections), chacune étant un vecteur SSRF distinct.
+**Solution** : `follow_redirects=False` + boucle manuelle revalidant chaque saut AVANT le `get` (cap `MAX_REDIRECTS`). Pour Playwright, intercepter via `context.route` et avorter les navigations vers un hôte interne. Règle générale : valider chaque requête réellement émise, pas seulement l'input. Limite résiduelle (DNS rebinding) à assumer/documenter si non fermée.
+**Date** : 2026-06-04
