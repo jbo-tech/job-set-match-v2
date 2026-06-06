@@ -83,7 +83,7 @@ echo "contenu" | python -m app.main <URL>
 | `OutreachGenerator` | `generate(analysis, offer_content) -> OutreachResult` | Accroche LinkedIn + email + suggestions CV. `max_tokens=llm.max_tokens_outreach` (4096, clé config dédiée). |
 | `ContentFetcher` | `fetch_clean_text(url) -> str \| None` ; `capture_pdf(url) -> bytes \| None` | Anti-SSRF : `_validate_url` par **saut** (httpx `follow_redirects=False`, `MAX_REDIRECTS=5`) ; Playwright filtré par `_guard_route`. Limite DNS rebinding assumée. Browser Playwright lazy + persistant. |
 | `DocumentLoader` | `load() -> dict[str,str]` | Charge les docs perso du vault (glob), produit des blocs système ; honore le flag `cache` par doc. |
-| `ObsidianWriter` | `write(...) -> Path` ; `company_exists` ; `url_already_analyzed` | Slug `Entreprise - Poste - Date` ; suffixe hash si `unknown`. `ensure_within` garde-fou path traversal. |
+| `ObsidianWriter` | `write(..., analysis_meta=None) -> Path` ; `company_exists` ; `url_already_analyzed` | Slug `Entreprise - Poste - Date` ; suffixe hash si `unknown`. `ensure_within` garde-fou path traversal. `analysis_meta` (optionnel) → écrit `prompt_version`/`model`/`temperature`/`cost_usd` au frontmatter `.analyse.md` (attribution, cf. ci-dessous). |
 | `BraveSearch` | (outil du CompanyAnalyzer) | Client REST httpx ; `BraveSearchError`. Désactivé si `BRAVE_API_KEY` vide. |
 | `PromptLoader` | `load(key) -> str` | Vault (override) sinon constante Python. En pratique : constantes Python (section `prompts` vide). |
 
@@ -120,6 +120,20 @@ Métier (`config.yaml`, via `AppConfig`) :
 **Résolution** : `LLMModelsConfig.resolve(service)` → override ou `default`.
 `get_app_config()` est en `lru_cache` ; le mode CLI le copie pour l'override de
 température.
+
+### Attribution & comparaison de prompts (`.analyse.md`)
+
+Pour optimiser les prompts depuis le vault, chaque `.analyse.md` porte en
+frontmatter, en plus des scores : `prompt_version` (sha256[:8] **automatique** du
+prompt `analysis`, via `app/utils/prompt_version.py`), `model`, `temperature`,
+`cost_usd` (coût de l'analyse **seule**, capturé avant entreprise/lettre/outreach).
+
+- **A/B** : ré-analyser une offre après avoir édité `app/prompts/analysis.py`
+  (`--refresh`) crée `.analyse.vN.md` avec un nouveau `prompt_version` → comparaison
+  côte à côte (Obsidian Bases : grouper par `prompt_version` / `model`).
+- **⚠ Piège** : ne pas optimiser sur les scores (`chanceRating`…) — ils sont
+  **auto-attribués par le LLM**. Le signal de qualité réel est le `status` humain
+  (postulé / entretien / rien). Cf. `anti-patterns.md` « métrique auto-attribuée ».
 
 ### Plugin Firefox (`plugin/`)
 

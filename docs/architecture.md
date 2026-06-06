@@ -1,6 +1,6 @@
 ---
-generated_from_commit: 4a5909b
-generated_on: 2026-06-05
+generated_from_commit: f71ead4
+generated_on: 2026-06-06
 ---
 
 # Architecture — Job Set & Match V2
@@ -61,7 +61,7 @@ Pour comprendre le système, lire dans cet ordre :
 | `app/services/obsidian_writer.py` | Écrit le dossier d'offre dans le vault ; dédup par URL et par entité. |
 | `app/services/brave_search.py` | Client REST Brave Search (outil du CompanyAnalyzer). |
 | `app/services/prompt_loader.py` | Charge un prompt depuis le vault (override) ou les constantes Python (fallback). |
-| `app/utils/` | `dedup` (fenêtre anti-doublon), `paths` (slug + `ensure_within`), `token_logger`, `pricing` (coûts dynamiques). |
+| `app/utils/` | `dedup` (fenêtre anti-doublon), `paths` (slug + `ensure_within`), `token_logger`, `pricing` (coûts dynamiques), `prompt_version` (empreinte auto d'un prompt pour l'attribution). |
 | `plugin/` | Extension Firefox MV3 : `extract.js` (contenu page), `service_worker.js` (POST backend), `popup` (UI + config URL/token). |
 
 ## Comment ça s'imbrique
