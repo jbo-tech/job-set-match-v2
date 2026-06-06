@@ -147,6 +147,49 @@ def test_analyse_frontmatter_uses_spec_field_names(tmp_path: Path):
     assert fm["entreprise"] == "[[02_Companies/Acme Corp]]"
 
 
+def test_analyse_frontmatter_includes_attribution(tmp_path: Path):
+    """analysis_meta (version prompt + modèle + température + coût) atterrit en frontmatter."""
+    layout = _make_layout(tmp_path)
+    writer = ObsidianWriter(layout)
+    result = _make_result()
+    writer.write(
+        result,
+        url="https://example.com/1",
+        offer_date=date(2026, 4, 22),
+        analysis_meta={
+            "prompt_version": "a1b2c3d4",
+            "model": "claude-sonnet-4-20250514",
+            "temperature": 0.2,
+            "cost_usd": 0.0123,
+        },
+    )
+    apps = layout.vault_root / "04_Applications"
+    fm = yaml.safe_load(
+        (apps / "Acme Corp - Data Engineer - 2026-04-22.analyse.md")
+        .read_text()
+        .split("---\n")[1]
+    )
+    assert fm["prompt_version"] == "a1b2c3d4"
+    assert fm["model"] == "claude-sonnet-4-20250514"
+    assert fm["temperature"] == 0.2
+    assert fm["cost_usd"] == 0.0123
+
+
+def test_analyse_frontmatter_without_attribution(tmp_path: Path):
+    """Sans analysis_meta, aucune clé d'attribution n'est ajoutée (rétro-compat)."""
+    layout = _make_layout(tmp_path)
+    writer = ObsidianWriter(layout)
+    writer.write(_make_result(), url="https://example.com/1", offer_date=date(2026, 4, 22))
+    apps = layout.vault_root / "04_Applications"
+    fm = yaml.safe_load(
+        (apps / "Acme Corp - Data Engineer - 2026-04-22.analyse.md")
+        .read_text()
+        .split("---\n")[1]
+    )
+    assert "prompt_version" not in fm
+    assert "model" not in fm
+
+
 def test_offre_frontmatter(tmp_path: Path):
     layout = _make_layout(tmp_path)
     writer = ObsidianWriter(layout)

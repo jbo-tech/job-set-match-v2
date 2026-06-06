@@ -71,8 +71,13 @@ class ObsidianWriter:
         outreach: OutreachResult | None = None,
         pdf_bytes: bytes | None = None,
         offer_date: date | None = None,
+        analysis_meta: dict | None = None,
     ) -> Path:
-        """Écrit les artefacts dans le vault. Retourne le chemin du dossier applications."""
+        """Écrit les artefacts dans le vault. Retourne le chemin du dossier applications.
+
+        `analysis_meta` (optionnel) : attribution de l'analyse — `prompt_version`,
+        `model`, `temperature`, `cost_usd` — écrite dans le frontmatter `.analyse.md`.
+        """
         offer_date = offer_date or date.today()
         company = vault_slug(result.jobSummary.jobCompany, max_length=80)
         position = vault_slug(result.jobSummary.jobTitle, max_length=80)
@@ -85,7 +90,7 @@ class ObsidianWriter:
         ensure_within(self.apps_dir / slug, self.vault_root)
 
         self._write_offre_md(slug, result, url, offer_content, offer_date)
-        self._write_analyse_md(slug, result, url, offer_date)
+        self._write_analyse_md(slug, result, url, offer_date, analysis_meta)
 
         if cover_letter or outreach:
             self._write_lettre_md(slug, result, cover_letter, outreach, offer_date)
@@ -136,6 +141,7 @@ class ObsidianWriter:
         result: AnalysisResult,
         url: str,
         offer_date: date,
+        analysis_meta: dict | None = None,
     ) -> None:
         target = self.apps_dir / f"{slug}.analyse.md"
         if target.exists():
@@ -158,6 +164,12 @@ class ObsidianWriter:
             "score_succes": result.competitiveProfile.successProbabilityRating,
             "decision": sr.shouldApply.decision,
         }
+        # Attribution (optionnelle) : version de prompt + modèle + température + coût,
+        # pour comparer les versions de prompt depuis le vault (Obsidian Bases).
+        if analysis_meta:
+            for key in ("prompt_version", "model", "temperature", "cost_usd"):
+                if analysis_meta.get(key) is not None:
+                    frontmatter[key] = analysis_meta[key]
         body = _render_analyse_body(result)
         self._write_md(target, frontmatter, body)
 

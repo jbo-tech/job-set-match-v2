@@ -26,6 +26,7 @@ from app.services.obsidian_writer import ObsidianWriter
 from app.services.offer_analyzer import AnalysisError, OfferAnalyzer
 from app.services.outreach_generator import OutreachGenerator
 from app.services.prompt_loader import PromptLoader
+from app.utils.prompt_version import prompt_fingerprint
 from app.utils.token_logger import get_stats
 
 logger = logging.getLogger(__name__)
@@ -50,13 +51,20 @@ class Pipeline:
         company_client = create_llm_client(llm.models.resolve("company"), api_keys)
         generation_client = create_llm_client(llm.models.resolve("generation"), api_keys)
 
+        analysis_prompt = self.prompt_loader.load("analysis")
+        analysis_temperature = llm.temperatures.get("analysis", 0.2)
         self.offer_analyzer = OfferAnalyzer(
             analysis_client,
             self.doc_loader,
-            prompt=self.prompt_loader.load("analysis"),
+            prompt=analysis_prompt,
             max_tokens=llm.max_tokens,
-            temperature=llm.temperatures.get("analysis", 0.2),
+            temperature=analysis_temperature,
         )
+        # Attribution : rattache chaque analyse à sa config (version prompt + modèle
+        # + température), pour comparer les versions de prompt depuis le vault.
+        self.analysis_prompt_version = prompt_fingerprint(analysis_prompt)
+        self.analysis_model = analysis_client.model_id
+        self.analysis_temperature = analysis_temperature
         self.content_fetcher = ContentFetcher()
         self.company_analyzer = CompanyAnalyzer(
             company_client,
@@ -97,6 +105,9 @@ class Pipeline:
                 return AnalyzeResponse(status="deduplicated")
 
             analysis, pdf_bytes = await self._analyze_and_capture(content, url_str)
+            # À ce stade, seule l'analyse d'offre a coûté (capture PDF gratuite,
+            # entreprise/lettre/outreach pas encore lancées) → coût analyse isolé.
+            analysis_cost = round(get_stats().cost_usd - cost_before, 6)
 
             company_name = analysis.jobSummary.jobCompany
             if not refresh and self.obsidian_writer.company_exists(company_name):
@@ -128,6 +139,12 @@ class Pipeline:
                 cover_letter=cover_letter,
                 outreach=outreach,
                 pdf_bytes=pdf_bytes,
+                analysis_meta={
+                    "prompt_version": self.analysis_prompt_version,
+                    "model": self.analysis_model,
+                    "temperature": self.analysis_temperature,
+                    "cost_usd": analysis_cost,
+                },
             )
 
             run_cost = round(get_stats().cost_usd - cost_before, 6)
