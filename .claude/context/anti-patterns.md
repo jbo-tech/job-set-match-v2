@@ -69,3 +69,9 @@ Erreurs rencontrées et comment les éviter. Ajoutés via `/retro`.
 **Cause** : le commentaire d'échelle a été écrit à côté de la clé sans le rattacher à la source de vérité de la valeur (le prompt qui impose `1-10 scale`). Aucun test ne couvre une annotation de doc.
 **Solution** : quand un commentaire de config affirme une plage numérique, la vérifier contre le validateur / le prompt / le modèle qui produit la valeur. Préférer pointer la source (« cf. analysis.py : 1-10 scale ») plutôt que recopier un range. `/document` est un bon filet pour ce type de drift silencieux.
 **Date** : 2026-06-05
+
+### Optimiser sur une métrique auto-attribuée par le LLM
+**Problème** : pour « optimiser les prompts », l'intuition est de comparer les scores (`chanceRating`, etc.) entre versions de prompt et de garder celle qui score le plus haut. Mais ces scores sont produits par le LLM lui-même : un prompt qui gonfle les notes paraît « meilleur » sans qu'aucune candidature n'aboutisse davantage. On optimiserait l'auto-flatterie, pas la qualité du matching.
+**Cause** : confusion entre la sortie du modèle (auto-évaluation) et le signal de qualité réel (issue humaine). Classique en ML : optimiser un proxy au lieu de l'objectif.
+**Solution** : le signal de vérité-terrain est l'issue humaine — ici le champ `status` du frontmatter (postulé / entretien / rien), rare et différé. L'attribution (`prompt_version`, `model`, `cost`) sert à *segmenter* ; la comparaison de qualité doit s'appuyer sur `status`, pas sur les scores du modèle. À garder en tête pour toute future boucle d'éval (approche C).
+**Date** : 2026-06-06

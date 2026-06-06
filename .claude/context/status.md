@@ -4,9 +4,19 @@
 Outil personnel de veille emploi : capture d'offre depuis Firefox → analyse Claude (offre + entreprise + profil) → dossier structuré dans vault Obsidian → dashboard via Obsidian Bases.
 
 ## Focus actuel
-Hygiène doc/config post-`/document` : drift résolu (D1–D5). Reste à committer (rien n'est commité depuis `1e5f687`). Prochaine étape : commit + `git add docs/`, puis test E2E manuel (`config.yaml` réel + plugin avec un vrai Chromium pour valider `_guard_route`).
+Optimisation des prompts par l'usage. Feature A livrée (attribution des analyses : version prompt + modèle + température + coût dans le frontmatter). **Prochaine étape = test E2E manuel (B)** : lancer une vraie analyse, vérifier le frontmatter, puis itérer sur `app/prompts/analysis.py` + `--refresh` pour comparer les versions. Penser à comparer aussi le `status` (issue réelle), pas que les scores auto-attribués.
 
 ## Log
+
+### 2026-06-06
+- Done: Feature **A — attribution des analyses par version de prompt** (commit `f71ead4`).
+  - **`app/utils/prompt_version.py`** (nouveau) : `prompt_fingerprint(text)` = sha256[:8] du prompt. Version **automatique** (change dès que le prompt change, zéro maintenance) — choix de l'utilisateur vs un `VERSION=` manuel.
+  - **`pipeline.py`** : stocke `analysis_prompt_version` / `analysis_model` / `analysis_temperature` en `__init__` ; capture le **coût de l'analyse seule** (delta `cost_usd` juste après `_analyze_and_capture`, avant entreprise/lettre/outreach) ; passe `analysis_meta` au writer.
+  - **`obsidian_writer.py`** : param optionnel `analysis_meta` → ajoute `prompt_version` / `model` / `temperature` / `cost_usd` au frontmatter `.analyse.md`. Rétro-compatible (pas de meta → pas de clés).
+  - **Insight produit-clé** : ne pas optimiser sur les scores auto-attribués par le LLM (auto-flatterie possible) — le signal de qualité réel est le `status` (issue humaine). Cf. anti-pattern + décision.
+- Tests : 155/155 (+5 : 3 `prompt_fingerprint`, 2 frontmatter avec/sans meta).
+- À noter : `docs/` (stamp `4a5909b`) désormais périmé — la feature A touche le frontmatter `obsidian_writer` + ajoute un util. Re-`/document` à prévoir.
+- Next : test E2E manuel (B) — non encore lancé.
 
 ### 2026-06-05
 - Done: `/document` (génération docs d'orientation) → `/scope` → `/goal` (nettoyage drift).

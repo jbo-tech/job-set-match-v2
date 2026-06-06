@@ -199,3 +199,9 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Context** : besoin de reprendre le contrôle détaillé d'un code qui bouge vite et de pouvoir l'enseigner. `/document` lit le code comme vérité-terrain et liste les écarts avec l'intention enregistrée — c'est ce cross-check qui a révélé D1 (échelle seuil).
 **Alternatives** : tout dans le README (mélange usage/architecture), garder les specs `*_SPEC.md` à la main (driftent, ici déjà disparues), pas de doc d'orientation (perte de contrôle au fil du temps).
 **Date** : 2026-06-05
+
+### Attribution des analyses par version de prompt (hash auto + coût isolé)
+**Decision** : chaque `.analyse.md` porte `prompt_version` (sha256[:8] **automatique** du prompt analysis), `model`, `temperature` et `cost_usd` (coût de l'analyse **seule**) dans son frontmatter. Sert de socle à l'optimisation des prompts depuis le vault (Obsidian Bases), via ré-run `--refresh` → `.analyse.vN.md`.
+**Context** : besoin de comparer des versions de prompt. La version automatique (hash) évite la maintenance d'un `VERSION=` manuel et change dès que le texte change. Le coût isolé est capturé par delta `cost_usd` juste après l'analyse d'offre (avant entreprise/lettre/outreach) — sinon le coût du run complet brouillerait l'attribution. **Important** : l'attribution segmente ; le signal de qualité reste le `status` humain, pas les scores (cf. anti-pattern « métrique auto-attribuée »).
+**Alternatives** : `VERSION=` manuel par prompt (lisible mais à incrémenter, oubli probable), coût du run complet (confondu avec entreprise/génération), pas d'attribution (impossible d'attribuer une issue à une version).
+**Date** : 2026-06-06
