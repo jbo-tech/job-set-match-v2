@@ -4,10 +4,16 @@ from functools import lru_cache
 from pathlib import Path
 
 import yaml
+from dotenv import load_dotenv
 from pydantic import BaseModel, Field
 from pydantic_settings import BaseSettings, SettingsConfigDict
 
 from app.vault_layout import VaultLayout
+
+_CENTRAL_KEYS = Path.home() / ".config" / "llm-provider-keys" / "providers.env"
+_LOCAL_ENV = Path(__file__).resolve().parent.parent / ".env"
+load_dotenv(_CENTRAL_KEYS)
+load_dotenv(_LOCAL_ENV, override=True)
 
 
 class LLMModelsConfig(BaseModel):
@@ -50,10 +56,11 @@ class ServerConfig(BaseModel):
 
 
 _PACKAGE_ROOT = Path(__file__).resolve().parent.parent
+_CONFIG_DIR = Path.home() / ".config" / "jobset-match"
 
 
 class AppConfig(BaseModel):
-    """Configuration métier unique lue depuis config.yaml."""
+    """Configuration métier unique lue depuis ~/.config/jobset-match/config.yaml."""
 
     vault: VaultLayout
     llm: LLMConfig = Field(default_factory=LLMConfig)
@@ -78,7 +85,6 @@ class Settings(BaseSettings):
     google_api_key: str = ""
 
     model_config = SettingsConfigDict(
-        env_file=".env",
         env_file_encoding="utf-8",
         case_sensitive=False,
         extra="ignore",
@@ -102,13 +108,16 @@ def get_settings() -> Settings:
 
 
 def load_app_config(yaml_path: Path | str | None = None) -> AppConfig:
-    """Charge et valide config.yaml depuis le disque."""
+    """Charge et valide config.yaml depuis ~/.config/jobset-match/."""
     if yaml_path is None:
-        path = _PACKAGE_ROOT / "config.yaml"
+        path = _CONFIG_DIR / "config.yaml"
     else:
         path = Path(yaml_path)
     if not path.exists():
-        raise FileNotFoundError(f"config.yaml introuvable : {path.resolve()}")
+        raise FileNotFoundError(
+            f"config.yaml introuvable : {path.resolve()}\n"
+            f"Run install.sh or copy config.example.yaml to {_CONFIG_DIR}/config.yaml"
+        )
     raw = yaml.safe_load(path.read_text(encoding="utf-8"))
     if raw is None:
         raise ValueError(f"config.yaml vide : {path.resolve()}")

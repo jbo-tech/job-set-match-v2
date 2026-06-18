@@ -12,20 +12,36 @@ Outil personnel de veille emploi : capture d'offre depuis Firefox, analyse Claud
 
 ## Setup
 
+### Quick setup
+
 ```bash
-# Python 3.11+ requis (pyenv recommande)
-pyenv local 3.12.3
+./install.sh
+```
 
-# Dependances
+This creates the central API keys store, copies config to `~/.config/jobset-match/`, and installs dependencies.
+
+### Manual setup
+
+```bash
+# Python 3.11+ requis
 uv sync --extra dev
-
-# Playwright (capture PDF)
 uv run playwright install chromium
 
-# Configuration
+# API keys — central store (shared with llm-sparring, claude-code-x)
+mkdir -p ~/.config/llm-provider-keys
+cp providers.env.example ~/.config/llm-provider-keys/providers.env  # or use existing
+chmod 600 ~/.config/llm-provider-keys/providers.env
+$EDITOR ~/.config/llm-provider-keys/providers.env
+
+# Business config
+mkdir -p ~/.config/jobset-match
+cp config.example.yaml ~/.config/jobset-match/config.yaml
+$EDITOR ~/.config/jobset-match/config.yaml
+
+# Project-specific env (AUTH_TOKEN, vault path only — no API keys)
 cp .env.example .env
-# Renseigner : ANTHROPIC_API_KEY, AUTH_TOKEN, OBSIDIAN_VAULT_PATH
-# Optionnel : BRAVE_API_KEY (+ clés providers). Config métier → config.yaml
+chmod 600 .env
+$EDITOR .env
 ```
 
 ## Usage
@@ -67,14 +83,24 @@ uv run python -m pytest
 
 ## Configuration
 
-Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèles, seuils) vit dans `config.yaml`.
+Three layers, loaded in order (later overrides earlier):
 
-### `.env` — secrets
+1. **`~/.config/llm-provider-keys/providers.env`** — LLM provider API keys (shared across projects)
+2. **`.env`** (project root) — project-specific secrets only (AUTH_TOKEN, OBSIDIAN_VAULT_PATH)
+3. **`~/.config/jobset-match/config.yaml`** — business config (vault layout, models, server)
+
+### `.env` — project-specific secrets
+
+| Variable | Description | Defaut |
+|----------|-------------|--------|
+| `AUTH_TOKEN` | Token d'authentification pour le plugin | *requis* |
+| `OBSIDIAN_VAULT_PATH` | Chemin absolu vers le vault Obsidian | *requis* |
+
+### `~/.config/llm-provider-keys/providers.env` — API keys
 
 | Variable | Description | Defaut |
 |----------|-------------|--------|
 | `ANTHROPIC_API_KEY` | Cle API Anthropic | *requis* |
-| `AUTH_TOKEN` | Token d'authentification pour le plugin | *requis* |
 | `BRAVE_API_KEY` | Cle API Brave Search (analyse entreprise) | *(vide = desactive)* |
 | `OPENAI_API_KEY` | Cle API OpenAI (si un modele gpt-* est configure) | *(vide)* |
 | `MISTRAL_API_KEY` | Cle API Mistral | *(vide)* |
@@ -82,7 +108,9 @@ Les **secrets** vivent dans `.env` ; toute la **config métier** (vault, modèle
 | `GROQ_API_KEY` | Cle API Groq | *(vide)* |
 | `GOOGLE_API_KEY` | Cle API Google (Gemini) | *(vide)* |
 
-### `config.yaml` — config metier
+If you already have this file from another project (llm-sparring, claude-code-x), no extra setup needed.
+
+### `~/.config/jobset-match/config.yaml` — config metier
 
 | Section | Cle | Description | Defaut |
 |---------|-----|-------------|--------|

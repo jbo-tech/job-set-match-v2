@@ -15,6 +15,7 @@ externes — équivalent fonctionnel, complexité opérationnelle moindre.
 import asyncio
 import ipaddress
 import logging
+import os
 import socket
 from urllib.parse import urlparse
 
@@ -120,7 +121,11 @@ class ContentFetcher:
         if self._playwright is None:
             self._playwright = await async_playwright().start()
 
-        self._browser = await self._playwright.chromium.launch(headless=True)
+        executable_path = os.getenv("PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH")
+        launch_kwargs: dict = {"headless": True}
+        if executable_path:
+            launch_kwargs["executable_path"] = executable_path
+        self._browser = await self._playwright.chromium.launch(**launch_kwargs)
         return self._browser
 
     async def close(self) -> None:
