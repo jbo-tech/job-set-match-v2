@@ -9,7 +9,9 @@
  */
 
 (function extractPageContent() {
-  const MAX_CHARS = 15000;
+  // Aligné sur AnalyzeRequest.content (max_length=50_000) côté backend : on
+  // n'écarte pas du contenu que le serveur accepterait.
+  const MAX_CHARS = 50000;
   const MIN_CHARS = 200;
   const NOISE_SELECTORS = [
     "script",

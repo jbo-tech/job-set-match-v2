@@ -42,3 +42,6 @@ node_modules/
 # Tests
 .coverage
 htmlcov/
+
+# Marqueur d'auto-délégation (local, ne pas committer)
+.claude/delegate-auto

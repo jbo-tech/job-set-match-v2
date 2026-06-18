@@ -39,9 +39,11 @@ class AuthMiddleware(BaseHTTPMiddleware):
                 request.url.path,
                 request.client.host if request.client else "unknown",
             )
+            # `error` (et non `detail`) pour une forme cohérente avec le reste
+            # de l'API : le service worker du plugin lit `data.error`.
             return JSONResponse(
                 status_code=401,
-                content={"detail": "Unauthorized"},
+                content={"error": "Unauthorized"},
             )
 
         return await call_next(request)

@@ -90,7 +90,7 @@ button:disabled {
   border-radius: 4px;
 }
 
-.result.hidden {
+.hidden {
   display: none;
 }
 
@@ -149,13 +149,4 @@ details button {
   font-size: 11px;
   color: #0a7a0a;
   min-height: 14px;
-}
-
-.url-warning {
-  margin: 4px 0 0;
-  font-size: 11px;
-  color: #e65100;
-  background: #fff3e0;
-  padding: 4px 6px;
-  border-radius: 2px;
 }

@@ -64,7 +64,7 @@ async function extractActiveTab() {
 // Appel backend
 // -----------------------------------------------------------------------------
 
-async function postAnalyze(payload, token) {
+async function postAnalyze(payload, token, refresh) {
   const controller = new AbortController();
   const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
   const baseUrl = await getBackendUrl();
@@ -81,6 +81,7 @@ async function postAnalyze(payload, token) {
         title: payload.title,
         content: payload.content,
         needs_fetch: payload.needsFetch,
+        refresh,
       }),
       signal: controller.signal,
     });
@@ -112,7 +113,7 @@ async function postAnalyze(payload, token) {
 // Pipeline complet appelé par le popup
 // -----------------------------------------------------------------------------
 
-async function runAnalysis() {
+async function runAnalysis(refresh = false) {
   const token = await getAuthToken();
   if (!token) {
     return {
@@ -123,7 +124,7 @@ async function runAnalysis() {
 
   try {
     const extracted = await extractActiveTab();
-    return await postAnalyze(extracted, token);
+    return await postAnalyze(extracted, token, refresh);
   } catch (err) {
     return { status: "error", error: String(err.message || err) };
   }
@@ -135,7 +136,7 @@ async function runAnalysis() {
 
 browser.runtime.onMessage.addListener((message) => {
   if (message && message.type === "analyze") {
-    return runAnalysis();
+    return runAnalysis(Boolean(message.refresh));
   }
   return Promise.resolve({ status: "error", error: "Message inconnu" });
 });

@@ -17,6 +17,10 @@
         <p class="status-message">Prêt à analyser la page courante.</p>
       </section>
 
+      <button id="reanalyze-btn" type="button" class="hidden">
+        Ré-analyser quand même
+      </button>
+
       <section id="result" class="result hidden">
         <p><strong>Entreprise :</strong> <span id="result-company"></span></p>
         <p><strong>Poste :</strong> <span id="result-position"></span></p>
@@ -35,7 +39,6 @@
           placeholder="http://127.0.0.1:8000"
           autocomplete="off"
         />
-        <p id="url-warning" class="url-warning" style="display: none;"></p>
         <label for="auth-token">Token d'authentification (X-Auth-Token)</label>
         <input
           type="password"

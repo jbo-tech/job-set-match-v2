@@ -12,9 +12,11 @@
 ```bash
 cp config.example.yaml config.yaml           # première installation / nouveau clone
 uv run uvicorn app.main:app --reload        # dev server (port 8000)
-uv run pytest                                # tests (140 tests)
+./install.sh                                 # setup complet (idempotent)
+uv run pytest                                # tests (158 tests)
 uv run python -m app.main <URL> [fichier] [--refresh] [--temperature 0.5]  # mode CLI
-uv run playwright install chromium           # setup Playwright (une fois)
+uv run playwright install chromium           # setup Playwright (si bundle dispo ; sinon fallback chromium système)
+./plugin/sign.sh                             # signe l'extension (unlisted AMO ; WEB_EXT_API_KEY/SECRET requis)
 ```
 
 ## Endpoints

@@ -70,10 +70,50 @@ uv run python -m app.main https://example.com/offre offre.txt --temperature 0.5
 
 ### Plugin Firefox
 
+Permissions demandees : `activeTab` (agit seulement sur l'onglet courant, au clic),
+`scripting`, `storage`, et acces reseau limite a `http://127.0.0.1/*` (le backend local).
+Aucun acces large aux pages ni a l'historique.
+
+**Voie dev (temporaire, disparait au redemarrage)**
+
 1. Ouvrir `about:debugging#/runtime/this-firefox`
 2. "Charger un module temporaire" → selectionner `plugin/manifest.json`
 3. Cliquer l'icone → Parametres → renseigner l'URL backend et le token
 4. Naviguer sur une offre d'emploi → cliquer "Analyser cette offre"
+
+**Voie permanente (extension signee)**
+
+Firefox n'installe durablement que les extensions signees par Mozilla. La signature
+*unlisted* (privee, automatique en quelques minutes) produit un `.xpi` que tu
+distribues toi-meme :
+
+1. Recuperer une cle API sur https://addons.mozilla.org/developers/addon/api/key/
+2. Exporter les identifiants (sans les committer) :
+   ```bash
+   export WEB_EXT_API_KEY=user:xxxxx:123
+   export WEB_EXT_API_SECRET=xxxxxxxx
+   ```
+3. Lancer la signature :
+   ```bash
+   ./plugin/sign.sh
+   ```
+4. Installer le `.xpi` genere (dans `plugin/web-ext-artifacts/`) via
+   `about:addons` → roue crantee → "Installer un module depuis un fichier".
+
+> Chaque nouvelle signature exige un numero de version unique : incrementer
+> `version` dans `plugin/manifest.json` avant de re-signer.
+
+### Playwright sur OS non supporte
+
+Si `uv run playwright install chromium` echoue (OS trop recent, architecture inconnue), `install.sh` cherche un chromium systeme et configure automatiquement `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` dans `.env`. Sinon, installer manuellement :
+
+```bash
+sudo snap install chromium          # Ubuntu (recommandé)
+# ou
+sudo apt install chromium-browser   # Debian/Ubuntu (fallback)
+```
+
+Puis relancer `./install.sh`.
 
 ### Tests
 

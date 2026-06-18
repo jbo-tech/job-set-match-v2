@@ -8,6 +8,7 @@
  */
 
 const analyzeBtn = document.getElementById("analyze-btn");
+const reanalyzeBtn = document.getElementById("reanalyze-btn");
 const statusBox = document.getElementById("status");
 const statusMsg = statusBox.querySelector(".status-message");
 const resultBox = document.getElementById("result");
@@ -22,7 +23,6 @@ const backendUrlInput = document.getElementById("backend-url");
 const authTokenInput = document.getElementById("auth-token");
 const saveSettingsBtn = document.getElementById("save-settings-btn");
 const settingsStatus = document.getElementById("settings-status");
-const urlWarning = document.getElementById("url-warning");
 
 // -----------------------------------------------------------------------------
 // Helpers UI
@@ -48,17 +48,31 @@ function hideResult() {
   resultBox.classList.add("hidden");
 }
 
+function showReanalyze() {
+  reanalyzeBtn.classList.remove("hidden");
+}
+
+function hideReanalyze() {
+  reanalyzeBtn.classList.add("hidden");
+}
+
 // -----------------------------------------------------------------------------
 // Analyse
 // -----------------------------------------------------------------------------
 
-async function handleAnalyze() {
+// `refresh=true` force la ré-analyse côté backend (bypass de l'anti-doublon),
+// déclenché par le bouton "Ré-analyser quand même".
+async function handleAnalyze(refresh = false) {
   analyzeBtn.disabled = true;
   hideResult();
+  hideReanalyze();
   setStatus("loading", "Analyse en cours (peut prendre 30–60s)…");
 
   try {
-    const response = await browser.runtime.sendMessage({ type: "analyze" });
+    const response = await browser.runtime.sendMessage({
+      type: "analyze",
+      refresh,
+    });
 
     if (!response) {
       setStatus("error", "Pas de réponse du service worker");
@@ -70,6 +84,7 @@ async function handleAnalyze() {
       showResult(response);
     } else if (response.status === "deduplicated") {
       setStatus("idle", "URL déjà analysée récemment (anti-doublon).");
+      showReanalyze();
     } else {
       setStatus("error", response.error || "Erreur inconnue");
     }
@@ -84,15 +99,13 @@ async function handleAnalyze() {
 // Gestion du token
 // -----------------------------------------------------------------------------
 
-function checkUrlWarning(url) {
-  // Seul 127.0.0.1 est couvert par host_permissions du manifest ; `localhost`
-  // déclenche donc volontairement l'avertissement (le fetch échouerait sinon).
-  if (url && !/^https?:\/\/127\.0\.0\.1(:|\/|$)/.test(url)) {
-    urlWarning.textContent =
-      "Attention : URL non locale — le token transitera par le réseau.";
-    urlWarning.style.display = "block";
-  } else {
-    urlWarning.style.display = "none";
+// Backend en loopback uniquement : seul 127.0.0.1 est couvert par
+// host_permissions du manifest. Le port reste libre.
+function isLoopbackUrl(url) {
+  try {
+    return new URL(url).hostname === "127.0.0.1";
+  } catch {
+    return false;
   }
 }
 
@@ -106,7 +119,6 @@ async function loadSettings() {
   if (authToken || backendUrl) {
     settingsStatus.textContent = "Paramètres chargés.";
   }
-  checkUrlWarning(backendUrl || "");
 }
 
 async function saveSettings() {
@@ -124,18 +136,26 @@ async function saveSettings() {
     settingsStatus.style.color = "#b00020";
     return;
   }
+  if (url && !isLoopbackUrl(url)) {
+    settingsStatus.textContent =
+      "URL invalide : backend local uniquement (127.0.0.1).";
+    settingsStatus.style.color = "#b00020";
+    return;
+  }
   const data = { authToken: token };
   if (url) data.backendUrl = url;
   await browser.storage.local.set(data);
   settingsStatus.textContent = "Paramètres enregistrés ✓";
   settingsStatus.style.color = "#0a7a0a";
-  checkUrlWarning(url);
 }
 
 // -----------------------------------------------------------------------------
 // Bootstrap
 // -----------------------------------------------------------------------------
 
-analyzeBtn.addEventListener("click", handleAnalyze);
+// Wrappers explicites : addEventListener passe l'objet Event en 1er argument,
+// qui serait interprété comme `refresh` truthy si on branchait handleAnalyze nu.
+analyzeBtn.addEventListener("click", () => handleAnalyze(false));
+reanalyzeBtn.addEventListener("click", () => handleAnalyze(true));
 saveSettingsBtn.addEventListener("click", saveSettings);
 loadSettings();
