@@ -75,3 +75,15 @@ Erreurs rencontrées et comment les éviter. Ajoutés via `/retro`.
 **Cause** : confusion entre la sortie du modèle (auto-évaluation) et le signal de qualité réel (issue humaine). Classique en ML : optimiser un proxy au lieu de l'objectif.
 **Solution** : le signal de vérité-terrain est l'issue humaine — ici le champ `status` du frontmatter (postulé / entretien / rien), rare et différé. L'attribution (`prompt_version`, `model`, `cost`) sert à *segmenter* ; la comparaison de qualité doit s'appuyer sur `status`, pas sur les scores du modèle. À garder en tête pour toute future boucle d'éval (approche C).
 **Date** : 2026-06-06
+
+### `addEventListener` passe l'objet Event comme 1er argument
+**Problème** : brancher directement un handler à paramètre par défaut — `btn.addEventListener("click", handleAnalyze)` avec `handleAnalyze(refresh = false)` — passe l'objet `Event` en 1er argument. `refresh` reçoit donc l'Event (toujours *truthy*), déclenchant le comportement « forcé » à chaque clic du bouton normal.
+**Cause** : le contrat de `addEventListener` (1 arg Event) entre en collision avec un handler conçu pour recevoir un flag.
+**Solution** : interposer un wrapper explicite — `btn.addEventListener("click", () => handleAnalyze(false))`. Règle : ne jamais brancher nu un handler dont le 1er paramètre n'est pas un Event ; envelopper dans une flèche qui fixe les arguments.
+**Date** : 2026-06-18
+
+### « Réparer » un manque sans lire le flux de bout en bout
+**Problème** : un audit a signalé le fallback `needs_fetch` comme inutile et « perdant le contenu » sur les pages derrière login. L'intuition était de corriger `extract.js`. Lecture faite, `pipeline.py:181` ne remplace le contenu plugin que si le fetch est *plus long* → le contenu n'est jamais perdu, et le seuil est recalculé côté serveur. La correction aurait été un no-op (voire une régression).
+**Cause** : raisonner sur un seul maillon (le client) en supposant le comportement de l'autre (le backend) au lieu de le vérifier.
+**Solution** : avant d'implémenter un correctif sur un flux client↔serveur, lire le traitement réel à l'autre bout. Le « problème » est parfois déjà géré ailleurs. Vérifier, ne pas supposer.
+**Date** : 2026-06-18

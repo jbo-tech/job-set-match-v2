@@ -205,3 +205,33 @@ Décisions techniques et leur contexte. Ajoutés via `/retro`.
 **Context** : besoin de comparer des versions de prompt. La version automatique (hash) évite la maintenance d'un `VERSION=` manuel et change dès que le texte change. Le coût isolé est capturé par delta `cost_usd` juste après l'analyse d'offre (avant entreprise/lettre/outreach) — sinon le coût du run complet brouillerait l'attribution. **Important** : l'attribution segmente ; le signal de qualité reste le `status` humain, pas les scores (cf. anti-pattern « métrique auto-attribuée »).
 **Alternatives** : `VERSION=` manuel par prompt (lisible mais à incrémenter, oubli probable), coût du run complet (confondu avec entreprise/génération), pas d'attribution (impossible d'attribuer une issue à une version).
 **Date** : 2026-06-06
+
+### PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH — fallback chromium système
+**Decision** : quand le bundle Playwright Chromium n'est pas disponible (OS trop récent, architecture non supportée), utiliser un chromium système via la variable d'env `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH`. Le script `install.sh` détecte automatiquement le chromium système et configure la variable dans `.env`. `content_fetcher.py` lit la variable et la passe en `executable_path` à `chromium.launch()`.
+**Context** : Ubuntu 26.04 n'est pas encore supporté par le bundle Chromium de Playwright 1.58. Sans fallback, impossible de générer des PDF. La variable d'env est le mécanisme standard Playwright pour pointer un binaire custom — pas de fork ni de config custom.
+**Alternatives** : downgrade Playwright (pas de version supportant 26.04), passer par un autre outil PDF (changement lourd pour un cas rare), forcer un binaire via symlink (fragile, non documenté).
+**Date** : 2026-06-15
+
+### Plugin custom signé unlisted plutôt qu'Automa (voie A)
+**Decision** : garder l'extension Firefox custom et la distribuer via signature **unlisted** AMO (`plugin/sign.sh`, identifiants `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET` lus depuis l'env). On ne migre pas vers Automa.
+**Context** : la friction ressentie n'était pas les permissions (le manifeste est déjà à privilèges minimaux : `activeTab` + `host_permissions` `127.0.0.1` seul, pas de `<all_urls>`) mais la signature. Automa demanderait des permissions **plus larges** (accès à tous les onglets), ajouterait une dépendance tierce et dégraderait l'UX. La seule capacité unique du plugin — extraire le DOM d'une page derrière login — est précisément ce qu'aucune alternative ne fait gratuitement.
+**Alternatives considered** : Automa (no-code, mais omniscient et tiers), bookmarklet / mini page web (zéro permission mais perd les pages authentifiées), CLI seul, signature *listed* AMO (revue éditoriale + maj auto, inutile pour un outil perso).
+**Date** : 2026-06-18
+
+### Plugin backend loopback-only + ré-analyse explicite
+**Decision** : le popup rejette à l'enregistrement tout host ≠ `127.0.0.1` (`isLoopbackUrl`), remplaçant l'ancien avertissement `url-warning`. Sur statut `deduplicated`, un bouton « Ré-analyser quand même » renvoie `refresh:true` (propagé jusqu'au backend par le service worker). `extract.js` tronque désormais à 50 000 (aligné sur `AnalyzeRequest.content`).
+**Context** : la config URL configurable laissait saisir des backends non couverts par `host_permissions` (échec silencieux) ; et une URL dédupliquée était un cul-de-sac sans moyen de forcer la ré-analyse depuis le plugin alors que le backend supportait déjà `refresh`.
+**Alternatives considered** : garder backend distant possible (rejeté : pas d'usage réel, complexifie host_permissions/CORS) ; champ URL totalement désactivé (rejeté : le port doit rester libre).
+**Date** : 2026-06-18
+
+### Forme d'erreur API uniforme : clé `error`
+**Decision** : le middleware d'auth renvoie `401 {"error": "Unauthorized"}` (et non `{"detail": ...}`), cohérent avec `AnalyzeResponse.error` que le service worker du plugin lit déjà. Couvert par `tests/test_auth.py`.
+**Context** : le service worker ne lisait que `data.error` → un token invalide (cas le plus fréquent à la première install) s'affichait « HTTP 401 » au lieu d'un message clair. Les erreurs FastAPI natives (`/docs`…) gardent `detail`.
+**Alternatives considered** : faire lire `detail` côté service worker (rejeté : aligne le client sur une exception au lieu d'uniformiser l'API).
+**Date** : 2026-06-18
+
+### Point 2 du scope écarté après vérification du flux (needs_fetch)
+**Decision** : ne **pas** modifier la logique `needsFetch` côté `extract.js`. Le backend (`pipeline.py:181`) ne remplace le contenu plugin par le fetch que s'il est *plus long*, donc le contenu client n'est jamais perdu ; et le seuil 200 est recalculé côté serveur. Toute modif aurait été un no-op ou une régression (perte du forçage de fetch).
+**Context** : l'audit suspectait un fallback « inutile » qui perdrait le contenu sur les pages derrière login. La lecture du pipeline a infirmé la conséquence.
+**Alternatives considered** : ne flagger `needsFetch` que sur contenu vide (rejeté : sans effet, le backend fetche déjà sous 200 chars).
+**Date** : 2026-06-18
