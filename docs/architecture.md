@@ -1,6 +1,6 @@
 ---
-generated_from_commit: f71ead4
-generated_on: 2026-06-06
+generated_from_commit: e12a4e8
+generated_on: 2026-06-18
 ---
 
 # Architecture — Job Set & Match V2
@@ -62,7 +62,7 @@ Pour comprendre le système, lire dans cet ordre :
 | `app/services/brave_search.py` | Client REST Brave Search (outil du CompanyAnalyzer). |
 | `app/services/prompt_loader.py` | Charge un prompt depuis le vault (override) ou les constantes Python (fallback). |
 | `app/utils/` | `dedup` (fenêtre anti-doublon), `paths` (slug + `ensure_within`), `token_logger`, `pricing` (coûts dynamiques), `prompt_version` (empreinte auto d'un prompt pour l'attribution). |
-| `plugin/` | Extension Firefox MV3 : `extract.js` (contenu page), `service_worker.js` (POST backend), `popup` (UI + config URL/token). |
+| `plugin/` | Extension Firefox MV3 : `extract.js` (contenu page), `service_worker.js` (POST backend, propage `refresh`), `popup` (UI + ré-analyse + config token, backend **loopback-only**). `sign.sh` signe l'extension (canal unlisted AMO). |
 
 ## Comment ça s'imbrique
 
@@ -132,6 +132,12 @@ Points clés du flux :
   - `middleware/auth.py` — comparaison de token timing-safe.
 - **Coûts tokens** : jamais hardcodés — résolus dynamiquement via `pricing.json`
   (partagé avec llm-sparring). Voir `app/utils/pricing.py`.
+- **Distribuer le plugin durablement** → `plugin/sign.sh` (signature unlisted AMO,
+  identifiants via `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET`). Choix « voie A » :
+  garder le plugin custom (privilèges minimaux) plutôt qu'Automa. Voir README §Plugin.
+- **Setup / Playwright** → `install.sh` (idempotent) : si le build Chromium de
+  Playwright manque (OS récent), bascule sur un Chromium système et écrit
+  `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` dans `.env` (lu par `content_fetcher`).
 
 ## Type de projet
 

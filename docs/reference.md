@@ -6,20 +6,32 @@
 
 ## Drift — à arbitrer
 
-Écarts entre intention et code/docs. Liste = ta to-do d'arbitrage.
+Écarts entre intention enregistrée (`decisions.md`) et code/docs, + dette portée
+par le code aujourd'hui. Liste = ta to-do d'arbitrage.
 
 | # | Type | Quoi | Où regarder | Question |
 |---|---|---|---|---|
-| D6 | Choix non tracé (mineur) | `CompanyAnalyzer` utilise `temperatures.get("analysis", 0.2)` — il n'existe pas de clé `company` ; il réutilise la temp d'analyse sans décision dédiée. | `app/pipeline.py:67`, `config.yaml` (section `temperatures`) | Ajouter une clé `company`, ou documenter le partage ? |
-| D7 | Cosmétique | Import dupliqué : `from app.models import OutreachResult` (ligne 24) en plus du groupe ligne 19. | `app/pipeline.py:19,24` | Fusionner (sans impact fonctionnel). |
+| D6 | Choix non tracé (mineur) | `CompanyAnalyzer` utilise `temperatures.get("analysis", 0.2)` — pas de clé `company` ; réutilise la temp d'analyse sans décision dédiée. | `app/pipeline.py:~74`, `config.yaml` (`temperatures`) | Ajouter une clé `company`, ou documenter le partage ? |
+| D7 | Dette cosmétique | Import dupliqué : `from app.models import OutreachResult` (ligne 24) en plus du groupe ligne 19. | `app/pipeline.py:19,24` | Fusionner (sans impact fonctionnel). |
+| D8 | Choix récents **non tracés** | Lot « durcissement plugin » de cette session (voir liste ci-dessous) implémenté mais absent de `decisions.md`. | `plugin/*`, `app/middleware/auth.py` | Acter au prochain `/retro`. |
+| Dette | Test E2E jamais exécuté | `status.md` répète « Next : test E2E manuel » depuis 2026-04. Tout est couvert en unitaire (158 tests) mais aucun run réel plugin→backend→vault validé. | — | Lancer une vraie analyse, vérifier le frontmatter `.analyse.md`. |
 
-**Résolus depuis la passe précédente** (commits `08e266b`, `db96f96`) : D1 (échelle
-`score_threshold` 1-10), D2 (refs mortes CLAUDE.md → `docs/`), D3 (README `.env`),
-D4 (note ASCII `.env.example`), D5 (`max_tokens_outreach` en clé config). Ne
-restent que les deux mineurs ci-dessus, non demandés au dernier scope.
+**D8 — choix de session non tracés** (faits sous `/scope`, à enregistrer) :
+- Plugin **loopback-only** : rejet à la saisie de tout host ≠ `127.0.0.1`
+  (remplace l'avertissement `url-warning`). Décision « garder backend local ».
+- Bouton **« Ré-analyser quand même »** → `refresh:true` propagé jusqu'au backend.
+- `extract.js` : troncature **15 000 → 50 000** (alignée sur `AnalyzeRequest.content`).
+- `auth.py` : 401 renvoie `{"error": ...}` (et non `{"detail": ...}`) — cohérent
+  avec le reste de l'API, lu par le service worker.
+- `plugin/sign.sh` : signature **unlisted** AMO (voie A retenue contre Automa).
+
+**Résolus aux passes précédentes** : D1 (échelle seuil 1-10), D2–D5 (refs CLAUDE.md,
+README `.env`, note ASCII, `max_tokens_outreach`). Le point 2 du dernier scope
+(`needs_fetch`) a été **écarté** : le backend ne perd jamais le contenu plugin
+(`pipeline.py:181`, fetch retenu seulement si plus long).
 
 **Docs en place** : `architecture.md` (carte) et ce référentiel — les deux seuls
-fichiers `docs/`, à jour. Aucun doc redondant/orphelin à fusionner ou supprimer.
+fichiers `docs/`, à jour (stamp `e12a4e8`). Aucun doc redondant/orphelin.
 
 Hors de ces points, le code est **aligné** sur les décisions enregistrées — y
 compris la limite DNS rebinding, explicitement assumée (décision « Anti-SSRF :
@@ -45,6 +57,11 @@ verrouillé par test), `needs_fetch: bool`, `refresh: bool`.
 
 **Gotcha** : `/stats` agrège la consommation depuis le démarrage du process ; le
 coût d'une analyse isolée est calculé par diff dans `Pipeline.run` (`cost_before`).
+
+**Erreurs** : auth échouée → `401 {"error": "Unauthorized"}` (clé `error`, pas
+`detail` — cohérent avec `AnalyzeResponse.error`, lu par le service worker du
+plugin ; testé dans `tests/test_auth.py`). Les `OPTIONS` (préflight CORS) et les
+`PUBLIC_PATHS` (`/health`, `/docs`, `/redoc`, `/openapi.json`) échappent à l'auth.
 
 ### Point d'entrée CLI (`python -m app.main`)
 
@@ -81,7 +98,7 @@ echo "contenu" | python -m app.main <URL>
 | `CompanyAnalyzer` | `analyze(company_name) -> str \| None` | Boucle tool-use (`MAX_TOOL_ITERATIONS=5`) + Brave Search. Si la limite est atteinte, **appel final sans tools** pour forcer une synthèse (décision dédiée). |
 | `CoverLetterGenerator` | `generate(analysis, offer_content) -> str` | Best-effort dans le pipeline. `max_tokens=llm.max_tokens` (8192). |
 | `OutreachGenerator` | `generate(analysis, offer_content) -> OutreachResult` | Accroche LinkedIn + email + suggestions CV. `max_tokens=llm.max_tokens_outreach` (4096, clé config dédiée). |
-| `ContentFetcher` | `fetch_clean_text(url) -> str \| None` ; `capture_pdf(url) -> bytes \| None` | Anti-SSRF : `_validate_url` par **saut** (httpx `follow_redirects=False`, `MAX_REDIRECTS=5`) ; Playwright filtré par `_guard_route`. Limite DNS rebinding assumée. Browser Playwright lazy + persistant. |
+| `ContentFetcher` | `fetch_clean_text(url) -> str \| None` ; `capture_pdf(url) -> bytes \| None` | Anti-SSRF : `_validate_url` par **saut** (httpx `follow_redirects=False`, `MAX_REDIRECTS=5`) ; Playwright filtré par `_guard_route`. Limite DNS rebinding assumée. Browser Playwright lazy + persistant ; honore `PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` (Chromium système) si défini. |
 | `DocumentLoader` | `load() -> dict[str,str]` | Charge les docs perso du vault (glob), produit des blocs système ; honore le flag `cache` par doc. |
 | `ObsidianWriter` | `write(..., analysis_meta=None) -> Path` ; `company_exists` ; `url_already_analyzed` | Slug `Entreprise - Poste - Date` ; suffixe hash si `unknown`. `ensure_within` garde-fou path traversal. `analysis_meta` (optionnel) → écrit `prompt_version`/`model`/`temperature`/`cost_usd` au frontmatter `.analyse.md` (attribution, cf. ci-dessous). |
 | `BraveSearch` | (outil du CompanyAnalyzer) | Client REST httpx ; `BraveSearchError`. Désactivé si `BRAVE_API_KEY` vide. |
@@ -104,6 +121,10 @@ echo "contenu" | python -m app.main <URL>
 
 Secrets (`.env`, via `Settings`) : `ANTHROPIC_API_KEY` (obligatoire), `AUTH_TOKEN`
 (obligatoire, **ASCII** — en-têtes HTTP), `BRAVE_API_KEY` + clés providers optionnelles.
+
+`PLAYWRIGHT_CHROMIUM_EXECUTABLE_PATH` (optionnel) : chemin d'un Chromium système,
+**lu directement via `os.environ`** par `content_fetcher` (pas un champ `Settings`).
+Écrit par `install.sh` quand le build Playwright manque (OS récent).
 
 Métier (`config.yaml`, via `AppConfig`) :
 
@@ -137,10 +158,23 @@ prompt `analysis`, via `app/utils/prompt_version.py`), `model`, `temperature`,
 
 ### Plugin Firefox (`plugin/`)
 
+Permissions minimales : `activeTab` (agit au clic, sur l'onglet courant uniquement),
+`scripting`, `storage`, et `host_permissions` = `http://127.0.0.1/*` seul.
+
 - `extract.js` : nettoie la page (retire nav/footer/scripts), `body.innerText`,
-  tronque à 15 000, `needsFetch` si `< 200` chars.
+  tronque à **50 000** (= `AnalyzeRequest.content`), `needsFetch` si `< 200` chars.
 - `service_worker.js` : `POST {backendUrl}/analyze` avec `X-Auth-Token`. Default
-  `http://127.0.0.1:8000`, timeout 120 s. Token relu **sans mutation**.
+  `http://127.0.0.1:8000`, timeout 120 s. Token relu **sans mutation**. Propage
+  `refresh` reçu du popup dans le payload.
 - `popup.js` : config `backendUrl` + `authToken` dans `storage.local`. Token
-  **non-ASCII rejeté** à la saisie (message explicite). `localhost` déclenche
-  l'avertissement « URL non locale » (seul `127.0.0.1` est dans `host_permissions`).
+  **non-ASCII rejeté** à la saisie. Backend **loopback-only** : `isLoopbackUrl`
+  rejette à l'enregistrement tout host ≠ `127.0.0.1` (le port reste libre).
+  Sur statut `deduplicated`, bouton **« Ré-analyser quand même »** → renvoie
+  `refresh:true` (force le bypass anti-doublon backend).
+- `sign.sh` : signe l'extension en **unlisted** via `web-ext` (identifiants AMO
+  dans `WEB_EXT_API_KEY`/`WEB_EXT_API_SECRET`, lus depuis l'env, jamais en argv).
+  ⚠ Chaque signature exige une `version` unique dans `manifest.json`.
+
+**Gotcha** : la validation loopback est côté UI ; la vraie barrière technique
+reste `host_permissions` du manifeste. Modifier l'un sans l'autre crée une config
+qui échoue silencieusement.
